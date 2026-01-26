@@ -1,12 +1,456 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GitHub Pages Site</title>
+    <title>家計簿アプリ</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
-    <h1>Welcome to My GitHub Pages Site</h1>
-    <p>This is my first GitHub Pages deployment!</p>
+    <div class="app-container">
+        <header>
+            <h1>家計簿アプリ</h1>
+            <nav>
+                <button class="nav-btn active" data-tab="input">入力</button>
+                <button class="nav-btn" data-tab="list">一覧</button>
+                <button class="nav-btn" data-tab="budget">予算管理</button>
+                <button class="nav-btn" data-tab="chart">チャート</button>
+                <button class="nav-btn" data-tab="calendar">カレンダー</button>
+                <button class="nav-btn" data-tab="link">外部連携</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- 入力タブ -->
+            <section id="input" class="tab-content active">
+                <h2>支出入力</h2>
+
+                <!-- レシート撮影 -->
+                <div class="receipt-section">
+                    <h3>レシート撮影で入力</h3>
+                    <div class="receipt-upload">
+                        <input type="file" id="receiptInput" accept="image/*" capture="environment">
+                        <label for="receiptInput" class="upload-btn">
+                            <span class="camera-icon">📷</span>
+                            レシートを撮影/選択
+                        </label>
+                        <div id="ocrStatus" class="ocr-status"></div>
+                    </div>
+                    <div id="receiptPreview" class="receipt-preview"></div>
+                </div>
+
+                <div class="divider">または手動入力</div>
+
+                <!-- 手動入力フォーム -->
+                <form id="expenseForm" class="expense-form">
+                    <div class="form-group">
+                        <label for="expenseDate">日付</label>
+                        <input type="date" id="expenseDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseDescription">説明</label>
+                        <input type="text" id="expenseDescription" placeholder="例: スーパーで買い物" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseAmount">金額</label>
+                        <input type="number" id="expenseAmount" placeholder="0" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseCategory">カテゴリ</label>
+                        <select id="expenseCategory" required>
+                            <option value="">選択してください</option>
+                            <option value="食費">食費</option>
+                            <option value="日用品">日用品</option>
+                            <option value="交通費">交通費</option>
+                            <option value="光熱費">光熱費</option>
+                            <option value="通信費">通信費</option>
+                            <option value="住居費">住居費</option>
+                            <option value="医療費">医療費</option>
+                            <option value="娯楽費">娯楽費</option>
+                            <option value="衣服費">衣服費</option>
+                            <option value="教育費">教育費</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">登録</button>
+                </form>
+            </section>
+
+            <!-- 一覧タブ -->
+            <section id="list" class="tab-content">
+                <h2>支出一覧</h2>
+
+                <!-- フィルター -->
+                <div class="filter-section">
+                    <div class="filter-group">
+                        <label>期間:</label>
+                        <input type="date" id="filterStartDate">
+                        <span>〜</span>
+                        <input type="date" id="filterEndDate">
+                    </div>
+                    <div class="filter-group">
+                        <label>カテゴリ:</label>
+                        <select id="filterCategory">
+                            <option value="">すべて</option>
+                            <option value="食費">食費</option>
+                            <option value="日用品">日用品</option>
+                            <option value="交通費">交通費</option>
+                            <option value="光熱費">光熱費</option>
+                            <option value="通信費">通信費</option>
+                            <option value="住居費">住居費</option>
+                            <option value="医療費">医療費</option>
+                            <option value="娯楽費">娯楽費</option>
+                            <option value="衣服費">衣服費</option>
+                            <option value="教育費">教育費</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>説明:</label>
+                        <input type="text" id="filterDescription" placeholder="キーワード検索">
+                    </div>
+                    <button id="applyFilter" class="filter-btn">絞り込み</button>
+                    <button id="clearFilter" class="filter-btn secondary">クリア</button>
+                </div>
+
+                <!-- 集計サマリー -->
+                <div class="summary-section">
+                    <div class="summary-card">
+                        <h4>表示中の合計</h4>
+                        <p id="filteredTotal" class="summary-value">¥0</p>
+                    </div>
+                </div>
+
+                <!-- カテゴリ別集計 -->
+                <div class="category-summary">
+                    <h3>カテゴリ別集計</h3>
+                    <div id="categorySummary" class="category-summary-grid"></div>
+                </div>
+
+                <!-- 支出テーブル -->
+                <div class="table-container">
+                    <table id="expenseTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>説明</th>
+                                <th>金額</th>
+                                <th>カテゴリ</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 予算管理タブ -->
+            <section id="budget" class="tab-content">
+                <h2>予算管理</h2>
+
+                <div class="budget-month">
+                    <label>対象月:</label>
+                    <input type="month" id="budgetMonth">
+                </div>
+
+                <div class="budget-grid">
+                    <div class="budget-item">
+                        <label>食費</label>
+                        <input type="number" class="budget-input" data-category="食費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>日用品</label>
+                        <input type="number" class="budget-input" data-category="日用品" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>交通費</label>
+                        <input type="number" class="budget-input" data-category="交通費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>光熱費</label>
+                        <input type="number" class="budget-input" data-category="光熱費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>通信費</label>
+                        <input type="number" class="budget-input" data-category="通信費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>住居費</label>
+                        <input type="number" class="budget-input" data-category="住居費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>医療費</label>
+                        <input type="number" class="budget-input" data-category="医療費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>娯楽費</label>
+                        <input type="number" class="budget-input" data-category="娯楽費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>衣服費</label>
+                        <input type="number" class="budget-input" data-category="衣服費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>教育費</label>
+                        <input type="number" class="budget-input" data-category="教育費" placeholder="0">
+                    </div>
+                    <div class="budget-item">
+                        <label>その他</label>
+                        <input type="number" class="budget-input" data-category="その他" placeholder="0">
+                    </div>
+                </div>
+
+                <button id="saveBudget" class="submit-btn">予算を保存</button>
+
+                <!-- 予実対比表 -->
+                <div class="budget-comparison">
+                    <h3>予実対比</h3>
+                    <table id="budgetComparisonTable">
+                        <thead>
+                            <tr>
+                                <th>カテゴリ</th>
+                                <th>予算</th>
+                                <th>実績</th>
+                                <th>差額</th>
+                                <th>達成率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budgetComparisonBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- チャートタブ -->
+            <section id="chart" class="tab-content">
+                <h2>グラフ分析</h2>
+
+                <div class="chart-controls">
+                    <label>表示月:</label>
+                    <input type="month" id="chartMonth">
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>予算 vs 実績</h3>
+                        <canvas id="budgetVsActualChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>カテゴリ別支出割合</h3>
+                        <canvas id="categoryPieChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>差額（予算 - 実績）</h3>
+                        <canvas id="differenceChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- カレンダータブ -->
+            <section id="calendar" class="tab-content">
+                <h2>カレンダー</h2>
+
+                <div class="calendar-controls">
+                    <button id="prevMonth" class="calendar-nav">◀</button>
+                    <span id="calendarMonth" class="calendar-title"></span>
+                    <button id="nextMonth" class="calendar-nav">▶</button>
+                </div>
+
+                <div class="calendar-grid">
+                    <div class="calendar-header">日</div>
+                    <div class="calendar-header">月</div>
+                    <div class="calendar-header">火</div>
+                    <div class="calendar-header">水</div>
+                    <div class="calendar-header">木</div>
+                    <div class="calendar-header">金</div>
+                    <div class="calendar-header">土</div>
+                </div>
+                <div id="calendarDays" class="calendar-days"></div>
+
+                <!-- 日別詳細 -->
+                <div id="dayDetail" class="day-detail">
+                    <h3 id="dayDetailTitle"></h3>
+                    <div id="dayDetailContent"></div>
+                </div>
+            </section>
+
+            <!-- 外部連携タブ -->
+            <section id="link" class="tab-content">
+                <h2>外部サービス連携</h2>
+                <p class="link-description">各サービスから取得した明細を手動で入力・更新できます。</p>
+
+                <div class="link-services">
+                    <!-- 銀行口座 -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">🏦</span>
+                            <h3>銀行口座</h3>
+                        </div>
+                        <div class="service-accounts" id="bankAccounts">
+                            <div class="account-item">
+                                <input type="text" placeholder="口座名（例：〇〇銀行）" class="account-name">
+                                <input type="number" placeholder="残高" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="bank">+ 口座を追加</button>
+                    </div>
+
+                    <!-- 証券口座 -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">📈</span>
+                            <h3>証券口座</h3>
+                        </div>
+                        <div class="service-accounts" id="securitiesAccounts">
+                            <div class="account-item">
+                                <input type="text" placeholder="口座名（例：〇〇証券）" class="account-name">
+                                <input type="number" placeholder="評価額" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="securities">+ 口座を追加</button>
+                    </div>
+
+                    <!-- クレジットカード -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">💳</span>
+                            <h3>クレジットカード</h3>
+                        </div>
+                        <div class="service-accounts" id="creditCards">
+                            <div class="account-item">
+                                <input type="text" placeholder="カード名" class="account-name">
+                                <input type="number" placeholder="利用額" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="credit">+ カードを追加</button>
+                    </div>
+
+                    <!-- 電子マネー -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">💰</span>
+                            <h3>電子マネー</h3>
+                        </div>
+                        <div class="service-accounts" id="eMoney">
+                            <div class="account-item">
+                                <input type="text" placeholder="名称（例：Suica）" class="account-name">
+                                <input type="number" placeholder="残高" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="emoney">+ 電子マネーを追加</button>
+                    </div>
+
+                    <!-- コード決済 -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">📱</span>
+                            <h3>コード決済</h3>
+                        </div>
+                        <div class="service-accounts" id="qrPayments">
+                            <div class="account-item">
+                                <input type="text" placeholder="名称（例：PayPay）" class="account-name">
+                                <input type="number" placeholder="残高" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="qr">+ サービスを追加</button>
+                    </div>
+
+                    <!-- ポイント -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">🎁</span>
+                            <h3>ポイント</h3>
+                        </div>
+                        <div class="service-accounts" id="points">
+                            <div class="account-item">
+                                <input type="text" placeholder="名称（例：楽天ポイント）" class="account-name">
+                                <input type="number" placeholder="ポイント数" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="points">+ ポイントを追加</button>
+                    </div>
+
+                    <!-- ECサイト -->
+                    <div class="service-card">
+                        <div class="service-header">
+                            <span class="service-icon">🛒</span>
+                            <h3>ECサイト残高</h3>
+                        </div>
+                        <div class="service-accounts" id="ecSites">
+                            <div class="account-item">
+                                <input type="text" placeholder="名称（例：Amazonギフト券）" class="account-name">
+                                <input type="number" placeholder="残高" class="account-balance">
+                                <button class="remove-account">×</button>
+                            </div>
+                        </div>
+                        <button class="add-account-btn" data-type="ec">+ サイトを追加</button>
+                    </div>
+                </div>
+
+                <button id="saveLinkedAccounts" class="submit-btn">連携情報を保存</button>
+
+                <!-- 資産サマリー -->
+                <div class="asset-summary">
+                    <h3>資産サマリー</h3>
+                    <div id="assetSummaryContent" class="asset-summary-grid"></div>
+                    <div class="total-assets">
+                        <span>総資産:</span>
+                        <span id="totalAssets" class="total-value">¥0</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 編集モーダル -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h3>支出を編集</h3>
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    <div class="form-group">
+                        <label for="editDate">日付</label>
+                        <input type="date" id="editDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editDescription">説明</label>
+                        <input type="text" id="editDescription" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editAmount">金額</label>
+                        <input type="number" id="editAmount" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editCategory">カテゴリ</label>
+                        <select id="editCategory" required>
+                            <option value="食費">食費</option>
+                            <option value="日用品">日用品</option>
+                            <option value="交通費">交通費</option>
+                            <option value="光熱費">光熱費</option>
+                            <option value="通信費">通信費</option>
+                            <option value="住居費">住居費</option>
+                            <option value="医療費">医療費</option>
+                            <option value="娯楽費">娯楽費</option>
+                            <option value="衣服費">衣服費</option>
+                            <option value="教育費">教育費</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">更新</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
