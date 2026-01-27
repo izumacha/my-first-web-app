@@ -1,0 +1,38 @@
+{
+  "name": "household-budget-app",
+  "version": "1.0.0",
+  "description": "家計簿アプリ - 予算管理、外部API連携、レシートOCR機能付き",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "household",
+    "budget",
+    "finance",
+    "japanese"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "moduleFileExtensions": [
+      "js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "app.js"
+    ]
+  }
+}
