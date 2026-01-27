@@ -5,7 +5,10 @@ const Storage = {
     KEYS: {
         EXPENSES: 'household_expenses',
         BUDGETS: 'household_budgets',
-        LINKED_ACCOUNTS: 'household_linked_accounts'
+        LINKED_ACCOUNTS: 'household_linked_accounts',
+        API_CONFIGS: 'household_api_configs',
+        SYNC_LOGS: 'household_sync_logs',
+        CUSTOM_APIS: 'household_custom_apis'
     },
 
     get(key) {
@@ -47,6 +50,32 @@ const Storage = {
 
     saveLinkedAccounts(accounts) {
         this.set(this.KEYS.LINKED_ACCOUNTS, accounts);
+    },
+
+    getApiConfigs() {
+        return this.get(this.KEYS.API_CONFIGS) || {};
+    },
+
+    saveApiConfigs(configs) {
+        this.set(this.KEYS.API_CONFIGS, configs);
+    },
+
+    getSyncLogs() {
+        return this.get(this.KEYS.SYNC_LOGS) || [];
+    },
+
+    saveSyncLogs(logs) {
+        // 最新100件のみ保持
+        const trimmedLogs = logs.slice(-100);
+        this.set(this.KEYS.SYNC_LOGS, trimmedLogs);
+    },
+
+    getCustomApis() {
+        return this.get(this.KEYS.CUSTOM_APIS) || [];
+    },
+
+    saveCustomApis(apis) {
+        this.set(this.KEYS.CUSTOM_APIS, apis);
     }
 };
 
@@ -953,6 +982,850 @@ function updateAssetSummary() {
     document.getElementById('totalAssets').className = totalAssets >= 0 ? 'total-value' : 'total-value negative';
 }
 
+// ========================================
+// API連携機能
+// ========================================
+
+// API設定
+let apiConfigs = {};
+let syncLogs = [];
+let customApis = [];
+
+// サービス情報マスタ
+const SERVICE_INFO = {
+    // 家計簿・資産管理サービス
+    'moneyforward': {
+        name: 'マネーフォワード ME',
+        category: 'aggregator',
+        defaultConfig: {
+            authType: 'oauth2',
+            authUrl: 'https://api.moneyforward.com/oauth/authorize',
+            tokenUrl: 'https://api.moneyforward.com/oauth/token',
+            baseUrl: 'https://api.moneyforward.com/v1',
+            balanceEndpoint: '/accounts',
+            transactionsEndpoint: '/transactions'
+        }
+    },
+    'zaim': {
+        name: 'Zaim',
+        category: 'aggregator',
+        defaultConfig: {
+            authType: 'oauth2',
+            authUrl: 'https://api.zaim.net/oauth/authorize',
+            tokenUrl: 'https://api.zaim.net/oauth/token',
+            baseUrl: 'https://api.zaim.net/v2',
+            balanceEndpoint: '/home/money',
+            transactionsEndpoint: '/home/money'
+        }
+    },
+    'freee': {
+        name: 'freee',
+        category: 'aggregator',
+        defaultConfig: {
+            authType: 'oauth2',
+            authUrl: 'https://accounts.secure.freee.co.jp/public_api/authorize',
+            tokenUrl: 'https://accounts.secure.freee.co.jp/public_api/token',
+            baseUrl: 'https://api.freee.co.jp/api/1',
+            balanceEndpoint: '/walletables',
+            transactionsEndpoint: '/deals'
+        }
+    },
+    // 銀行
+    'mufg': {
+        name: '三菱UFJ銀行',
+        category: 'bank',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.bk.mufg.jp/v1'
+        }
+    },
+    'smbc': {
+        name: '三井住友銀行',
+        category: 'bank',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.smbc.co.jp/v1'
+        }
+    },
+    'mizuho': {
+        name: 'みずほ銀行',
+        category: 'bank',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.mizuhobank.co.jp/v1'
+        }
+    },
+    'rakuten-bank': {
+        name: '楽天銀行',
+        category: 'bank',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.rakuten-bank.co.jp/v1'
+        }
+    },
+    // 証券
+    'sbi': {
+        name: 'SBI証券',
+        category: 'securities',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.sbisec.co.jp/v1'
+        }
+    },
+    'rakuten-sec': {
+        name: '楽天証券',
+        category: 'securities',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.rakuten-sec.co.jp/v1'
+        }
+    },
+    'monex': {
+        name: 'マネックス証券',
+        category: 'securities',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.monex.co.jp/v1'
+        }
+    },
+    // クレジットカード
+    'rakuten-card': {
+        name: '楽天カード',
+        category: 'credit',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.rakuten-card.co.jp/v1'
+        }
+    },
+    'aeon-card': {
+        name: 'イオンカード',
+        category: 'credit',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.aeon.co.jp/v1'
+        }
+    },
+    // コード決済
+    'paypay': {
+        name: 'PayPay',
+        category: 'qr',
+        defaultConfig: {
+            authType: 'oauth2',
+            authUrl: 'https://api.paypay.ne.jp/oauth/authorize',
+            tokenUrl: 'https://api.paypay.ne.jp/oauth/token',
+            baseUrl: 'https://api.paypay.ne.jp/v1',
+            balanceEndpoint: '/wallet/balance'
+        }
+    },
+    'linepay': {
+        name: 'LINE Pay',
+        category: 'qr',
+        defaultConfig: {
+            authType: 'apikey',
+            baseUrl: 'https://api-pay.line.me/v3'
+        }
+    },
+    'merpay': {
+        name: 'メルペイ',
+        category: 'qr',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.merpay.com/v1'
+        }
+    },
+    'suica': {
+        name: 'モバイルSuica',
+        category: 'emoney',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.mobilesuica.com/v1'
+        }
+    },
+    // ポイント
+    'rakuten-point': {
+        name: '楽天ポイント',
+        category: 'points',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.rakuten.co.jp/point/v1'
+        }
+    },
+    'tpoint': {
+        name: 'Tポイント',
+        category: 'points',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.tsite.jp/v1'
+        }
+    },
+    'dpoint': {
+        name: 'dポイント',
+        category: 'points',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.d-point.jp/v1'
+        }
+    },
+    // ECサイト
+    'amazon': {
+        name: 'Amazon',
+        category: 'ec',
+        defaultConfig: {
+            authType: 'oauth2',
+            baseUrl: 'https://api.amazon.co.jp/v1'
+        }
+    },
+    'rakuten-ichiba': {
+        name: '楽天市場',
+        category: 'ec',
+        defaultConfig: {
+            authType: 'apikey',
+            baseUrl: 'https://api.rakuten.co.jp/rms/v1'
+        }
+    }
+};
+
+// API連携モード切替
+function initApiLinkMode() {
+    const modeBtns = document.querySelectorAll('.link-mode-btn');
+    const modeContents = document.querySelectorAll('.link-mode-content');
+
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+
+            modeBtns.forEach(b => b.classList.remove('active'));
+            modeContents.forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('active');
+            document.getElementById(mode === 'api' ? 'apiLinkMode' : 'manualLinkMode').classList.add('active');
+        });
+    });
+}
+
+// API接続設定の初期化
+function initApiConnection() {
+    // 設定を読み込み
+    apiConfigs = Storage.getApiConfigs();
+    syncLogs = Storage.getSyncLogs();
+    customApis = Storage.getCustomApis();
+
+    // 接続ボタン
+    document.querySelectorAll('.api-connect-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const service = btn.dataset.service;
+            openApiConfigModal(service);
+        });
+    });
+
+    // 認証方式切替
+    const authTypeSelect = document.getElementById('apiAuthType');
+    if (authTypeSelect) {
+        authTypeSelect.addEventListener('change', () => {
+            updateAuthSettingsVisibility();
+        });
+    }
+
+    // 接続テストボタン
+    const testBtn = document.getElementById('testApiConnection');
+    if (testBtn) {
+        testBtn.addEventListener('click', testApiConnection);
+    }
+
+    // OAuth開始ボタン
+    const oauthBtn = document.getElementById('startOAuthFlow');
+    if (oauthBtn) {
+        oauthBtn.addEventListener('click', startOAuthFlow);
+    }
+
+    // 設定保存ボタン
+    const saveBtn = document.getElementById('saveApiConfig');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveApiConfig);
+    }
+
+    // すべて同期ボタン
+    const syncAllBtn = document.getElementById('syncAllBtn');
+    if (syncAllBtn) {
+        syncAllBtn.addEventListener('click', syncAllServices);
+    }
+
+    // カスタムAPI追加ボタン
+    const addCustomApiBtn = document.getElementById('addCustomApiBtn');
+    if (addCustomApiBtn) {
+        addCustomApiBtn.addEventListener('click', () => {
+            document.getElementById('customApiModal').classList.add('active');
+        });
+    }
+
+    // カスタムAPIフォーム
+    const customApiForm = document.getElementById('customApiForm');
+    if (customApiForm) {
+        customApiForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addCustomApi();
+        });
+    }
+
+    // モーダル閉じるボタン
+    document.querySelectorAll('.modal .close-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.modal').classList.remove('active');
+        });
+    });
+
+    // モーダル背景クリック
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+
+    // 接続状態を更新
+    updateConnectionStatus();
+    renderSyncLogs();
+    renderCustomApis();
+
+    // リダイレクトURI設定
+    const redirectUriInput = document.getElementById('oauthRedirectUri');
+    if (redirectUriInput) {
+        redirectUriInput.value = window.location.origin + '/callback';
+    }
+}
+
+// API設定モーダルを開く
+function openApiConfigModal(service) {
+    const modal = document.getElementById('apiConfigModal');
+    const serviceInfo = SERVICE_INFO[service] || { name: service, defaultConfig: {} };
+    const existingConfig = apiConfigs[service] || {};
+
+    document.getElementById('apiConfigTitle').textContent = `${serviceInfo.name} - API接続設定`;
+    document.getElementById('apiConfigService').value = service;
+
+    // デフォルト設定または既存設定を適用
+    const config = { ...serviceInfo.defaultConfig, ...existingConfig };
+
+    document.getElementById('apiAuthType').value = config.authType || 'oauth2';
+
+    // OAuth設定
+    document.getElementById('oauthClientId').value = config.clientId || '';
+    document.getElementById('oauthClientSecret').value = config.clientSecret || '';
+    document.getElementById('oauthAuthUrl').value = config.authUrl || '';
+    document.getElementById('oauthTokenUrl').value = config.tokenUrl || '';
+    document.getElementById('oauthScopes').value = config.scopes || '';
+
+    // APIキー設定
+    document.getElementById('apiKey').value = config.apiKey || '';
+    document.getElementById('apiKeyHeader').value = config.apiKeyHeader || 'X-API-Key';
+
+    // Basic認証設定
+    document.getElementById('basicUsername').value = config.username || '';
+    document.getElementById('basicPassword').value = config.password || '';
+
+    // Bearerトークン設定
+    document.getElementById('bearerToken').value = config.accessToken || '';
+
+    // エンドポイント設定
+    document.getElementById('apiBaseUrl').value = config.baseUrl || '';
+    document.getElementById('apiBalanceEndpoint').value = config.balanceEndpoint || '';
+    document.getElementById('apiTransactionsEndpoint').value = config.transactionsEndpoint || '';
+
+    // データマッピング設定
+    document.getElementById('mappingBalance').value = config.mappingBalance || 'data.balance';
+    document.getElementById('mappingDate').value = config.mappingDate || 'data.transactions[].date';
+    document.getElementById('mappingAmount').value = config.mappingAmount || 'data.transactions[].amount';
+    document.getElementById('mappingDescription').value = config.mappingDescription || 'data.transactions[].description';
+
+    updateAuthSettingsVisibility();
+    modal.classList.add('active');
+}
+
+// 認証方式に応じた設定表示切替
+function updateAuthSettingsVisibility() {
+    const authType = document.getElementById('apiAuthType').value;
+
+    document.getElementById('oauth2Settings').style.display = authType === 'oauth2' ? 'block' : 'none';
+    document.getElementById('apikeySettings').style.display = authType === 'apikey' ? 'block' : 'none';
+    document.getElementById('basicSettings').style.display = authType === 'basic' ? 'block' : 'none';
+    document.getElementById('bearerSettings').style.display = authType === 'bearer' ? 'block' : 'none';
+
+    // OAuthボタンの表示
+    const oauthBtn = document.getElementById('startOAuthFlow');
+    oauthBtn.style.display = authType === 'oauth2' ? 'inline-block' : 'none';
+}
+
+// API設定を保存
+function saveApiConfig() {
+    const service = document.getElementById('apiConfigService').value;
+    const authType = document.getElementById('apiAuthType').value;
+
+    const config = {
+        authType,
+        baseUrl: document.getElementById('apiBaseUrl').value,
+        balanceEndpoint: document.getElementById('apiBalanceEndpoint').value,
+        transactionsEndpoint: document.getElementById('apiTransactionsEndpoint').value,
+        mappingBalance: document.getElementById('mappingBalance').value,
+        mappingDate: document.getElementById('mappingDate').value,
+        mappingAmount: document.getElementById('mappingAmount').value,
+        mappingDescription: document.getElementById('mappingDescription').value,
+        lastUpdated: new Date().toISOString()
+    };
+
+    // 認証方式別の設定
+    switch (authType) {
+        case 'oauth2':
+            config.clientId = document.getElementById('oauthClientId').value;
+            config.clientSecret = document.getElementById('oauthClientSecret').value;
+            config.authUrl = document.getElementById('oauthAuthUrl').value;
+            config.tokenUrl = document.getElementById('oauthTokenUrl').value;
+            config.scopes = document.getElementById('oauthScopes').value;
+            config.redirectUri = document.getElementById('oauthRedirectUri').value;
+            break;
+        case 'apikey':
+            config.apiKey = document.getElementById('apiKey').value;
+            config.apiKeyHeader = document.getElementById('apiKeyHeader').value;
+            break;
+        case 'basic':
+            config.username = document.getElementById('basicUsername').value;
+            config.password = document.getElementById('basicPassword').value;
+            break;
+        case 'bearer':
+            config.accessToken = document.getElementById('bearerToken').value;
+            break;
+    }
+
+    apiConfigs[service] = config;
+    Storage.saveApiConfigs(apiConfigs);
+
+    addSyncLog('info', `${getServiceName(service)}の設定を保存しました`);
+    updateConnectionStatus();
+
+    document.getElementById('apiConfigModal').classList.remove('active');
+    alert('API設定を保存しました');
+}
+
+// 接続テスト
+async function testApiConnection() {
+    const service = document.getElementById('apiConfigService').value;
+    const resultDiv = document.getElementById('apiTestResult');
+
+    resultDiv.className = 'api-test-result show loading';
+    resultDiv.textContent = '接続テスト中...';
+
+    try {
+        const config = getConfigFromForm();
+        const response = await makeApiRequest(config, config.balanceEndpoint);
+
+        if (response.ok) {
+            resultDiv.className = 'api-test-result show success';
+            resultDiv.textContent = '接続成功！APIからデータを取得できました。';
+            addSyncLog('success', `${getServiceName(service)}への接続テストが成功しました`);
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        resultDiv.className = 'api-test-result show error';
+        resultDiv.textContent = `接続失敗: ${error.message}`;
+        addSyncLog('error', `${getServiceName(service)}への接続テストが失敗しました: ${error.message}`);
+    }
+}
+
+// フォームから設定を取得
+function getConfigFromForm() {
+    const authType = document.getElementById('apiAuthType').value;
+    const config = {
+        authType,
+        baseUrl: document.getElementById('apiBaseUrl').value,
+        balanceEndpoint: document.getElementById('apiBalanceEndpoint').value,
+        transactionsEndpoint: document.getElementById('apiTransactionsEndpoint').value
+    };
+
+    switch (authType) {
+        case 'oauth2':
+            config.accessToken = apiConfigs[document.getElementById('apiConfigService').value]?.accessToken;
+            break;
+        case 'apikey':
+            config.apiKey = document.getElementById('apiKey').value;
+            config.apiKeyHeader = document.getElementById('apiKeyHeader').value;
+            break;
+        case 'basic':
+            config.username = document.getElementById('basicUsername').value;
+            config.password = document.getElementById('basicPassword').value;
+            break;
+        case 'bearer':
+            config.accessToken = document.getElementById('bearerToken').value;
+            break;
+    }
+
+    return config;
+}
+
+// APIリクエストを実行
+async function makeApiRequest(config, endpoint) {
+    const url = config.baseUrl + endpoint;
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+
+    switch (config.authType) {
+        case 'oauth2':
+        case 'bearer':
+            if (config.accessToken) {
+                headers['Authorization'] = `Bearer ${config.accessToken}`;
+            }
+            break;
+        case 'apikey':
+            headers[config.apiKeyHeader] = config.apiKey;
+            break;
+        case 'basic':
+            const credentials = btoa(`${config.username}:${config.password}`);
+            headers['Authorization'] = `Basic ${credentials}`;
+            break;
+    }
+
+    return fetch(url, {
+        method: 'GET',
+        headers,
+        mode: 'cors'
+    });
+}
+
+// OAuth認証フローを開始
+function startOAuthFlow() {
+    const service = document.getElementById('apiConfigService').value;
+    const clientId = document.getElementById('oauthClientId').value;
+    const authUrl = document.getElementById('oauthAuthUrl').value;
+    const redirectUri = document.getElementById('oauthRedirectUri').value;
+    const scopes = document.getElementById('oauthScopes').value;
+
+    if (!clientId || !authUrl) {
+        alert('クライアントIDと認可エンドポイントを入力してください');
+        return;
+    }
+
+    // OAuth認可URLを構築
+    const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: scopes,
+        state: service
+    });
+
+    const fullAuthUrl = `${authUrl}?${params.toString()}`;
+
+    // 新しいウィンドウで認証を開始
+    const authWindow = window.open(fullAuthUrl, 'oauth', 'width=600,height=700');
+
+    addSyncLog('info', `${getServiceName(service)}のOAuth認証を開始しました`);
+
+    // 注意: 実際のOAuth実装では、コールバックを受け取るサーバーサイド処理が必要
+    alert('OAuth認証ウィンドウが開きました。認証完了後、アクセストークンを「Bearerトークン」欄に入力してください。\n\n※実際の運用では、コールバックを処理するバックエンドサーバーが必要です。');
+}
+
+// すべてのサービスを同期
+async function syncAllServices() {
+    const syncBtn = document.getElementById('syncAllBtn');
+    syncBtn.disabled = true;
+    syncBtn.classList.add('syncing');
+    syncBtn.innerHTML = '<span class="sync-icon">🔄</span> 同期中...';
+
+    const connectedServices = Object.keys(apiConfigs).filter(service =>
+        apiConfigs[service].accessToken || apiConfigs[service].apiKey
+    );
+
+    if (connectedServices.length === 0) {
+        alert('接続されているサービスがありません。先にAPI設定を行ってください。');
+        syncBtn.disabled = false;
+        syncBtn.classList.remove('syncing');
+        syncBtn.innerHTML = '<span class="sync-icon">🔄</span> すべて同期';
+        return;
+    }
+
+    addSyncLog('info', `${connectedServices.length}件のサービスの同期を開始します`);
+
+    for (const service of connectedServices) {
+        await syncService(service);
+    }
+
+    // 最終同期時刻を更新
+    const now = new Date();
+    document.getElementById('lastSyncTime').textContent = now.toLocaleString('ja-JP');
+
+    syncBtn.disabled = false;
+    syncBtn.classList.remove('syncing');
+    syncBtn.innerHTML = '<span class="sync-icon">🔄</span> すべて同期';
+
+    updateAssetSummary();
+    addSyncLog('info', '全サービスの同期が完了しました');
+}
+
+// 個別サービスを同期
+async function syncService(service) {
+    const config = apiConfigs[service];
+    const statusEl = document.getElementById(`status-${service}`);
+
+    if (statusEl) {
+        statusEl.textContent = '同期中...';
+        statusEl.className = 'api-service-status syncing';
+    }
+
+    try {
+        // 残高を取得
+        const balanceResponse = await makeApiRequest(config, config.balanceEndpoint);
+
+        if (balanceResponse.ok) {
+            const data = await balanceResponse.json();
+            const balance = extractValue(data, config.mappingBalance);
+
+            // 連携口座を更新
+            updateLinkedAccountFromApi(service, balance);
+
+            if (statusEl) {
+                statusEl.textContent = '接続済';
+                statusEl.className = 'api-service-status connected';
+            }
+
+            addSyncLog('success', `${getServiceName(service)}の同期が完了しました`);
+        } else {
+            throw new Error(`HTTP ${balanceResponse.status}`);
+        }
+    } catch (error) {
+        if (statusEl) {
+            statusEl.textContent = 'エラー';
+            statusEl.className = 'api-service-status error';
+        }
+
+        addSyncLog('error', `${getServiceName(service)}の同期に失敗しました: ${error.message}`);
+    }
+}
+
+// JSONパスから値を抽出
+function extractValue(data, path) {
+    if (!path) return null;
+
+    const parts = path.replace(/\[\]/g, '.0').split('.');
+    let value = data;
+
+    for (const part of parts) {
+        if (value === null || value === undefined) return null;
+        value = value[part];
+    }
+
+    return value;
+}
+
+// APIからの残高で連携口座を更新
+function updateLinkedAccountFromApi(service, balance) {
+    const serviceInfo = SERVICE_INFO[service];
+    if (!serviceInfo) return;
+
+    const categoryMap = {
+        'bank': 'bank',
+        'securities': 'securities',
+        'credit': 'credit',
+        'qr': 'qr',
+        'emoney': 'emoney',
+        'points': 'points',
+        'ec': 'ec',
+        'aggregator': 'bank' // 集約サービスは銀行として扱う
+    };
+
+    const accountType = categoryMap[serviceInfo.category] || 'bank';
+    const accounts = Storage.getLinkedAccounts();
+
+    // 既存のアカウントを探す
+    const existingIndex = accounts[accountType].findIndex(a => a.apiService === service);
+
+    const accountData = {
+        name: serviceInfo.name,
+        balance: balance || 0,
+        apiService: service,
+        lastSync: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+        accounts[accountType][existingIndex] = accountData;
+    } else {
+        accounts[accountType].push(accountData);
+    }
+
+    Storage.saveLinkedAccounts(accounts);
+}
+
+// 接続状態を更新
+function updateConnectionStatus() {
+    Object.keys(SERVICE_INFO).forEach(service => {
+        const statusEl = document.getElementById(`status-${service}`);
+        const cardEl = document.querySelector(`.api-service-card[data-service="${service}"]`);
+        const config = apiConfigs[service];
+
+        if (statusEl) {
+            if (config && (config.accessToken || config.apiKey)) {
+                statusEl.textContent = '接続済';
+                statusEl.className = 'api-service-status connected';
+                if (cardEl) cardEl.classList.add('connected');
+            } else if (config) {
+                statusEl.textContent = '設定済';
+                statusEl.className = 'api-service-status';
+            } else {
+                statusEl.textContent = '未接続';
+                statusEl.className = 'api-service-status';
+                if (cardEl) cardEl.classList.remove('connected');
+            }
+        }
+    });
+}
+
+// 同期ログを追加
+function addSyncLog(type, message) {
+    const log = {
+        timestamp: new Date().toISOString(),
+        type,
+        message
+    };
+
+    syncLogs.push(log);
+    Storage.saveSyncLogs(syncLogs);
+    renderSyncLogs();
+}
+
+// 同期ログを表示
+function renderSyncLogs() {
+    const container = document.getElementById('syncLogContent');
+    if (!container) return;
+
+    if (syncLogs.length === 0) {
+        container.innerHTML = '<p class="no-log">同期履歴はありません</p>';
+        return;
+    }
+
+    // 最新20件を表示
+    const recentLogs = syncLogs.slice(-20).reverse();
+
+    container.innerHTML = recentLogs.map(log => {
+        const time = new Date(log.timestamp).toLocaleString('ja-JP');
+        return `
+            <div class="sync-log-item">
+                <span class="sync-log-time">${time}</span>
+                <span class="sync-log-message ${log.type}">${escapeHtml(log.message)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// カスタムAPIを追加
+function addCustomApi() {
+    const name = document.getElementById('customApiName').value.trim();
+    const category = document.getElementById('customApiCategory').value;
+    const description = document.getElementById('customApiDescription').value.trim();
+
+    if (!name) {
+        alert('サービス名を入力してください');
+        return;
+    }
+
+    const id = 'custom-' + Date.now();
+
+    const customApi = {
+        id,
+        name,
+        category,
+        description,
+        createdAt: new Date().toISOString()
+    };
+
+    customApis.push(customApi);
+    Storage.saveCustomApis(customApis);
+
+    // SERVICE_INFOに追加
+    SERVICE_INFO[id] = {
+        name,
+        category,
+        defaultConfig: {
+            authType: 'apikey'
+        }
+    };
+
+    document.getElementById('customApiForm').reset();
+    document.getElementById('customApiModal').classList.remove('active');
+
+    renderCustomApis();
+    addSyncLog('info', `カスタムAPI「${name}」を追加しました`);
+}
+
+// カスタムAPIを表示
+function renderCustomApis() {
+    const container = document.getElementById('customApiList');
+    if (!container) return;
+
+    if (customApis.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const categoryLabels = {
+        bank: '銀行口座',
+        securities: '証券口座',
+        credit: 'クレジットカード',
+        emoney: '電子マネー',
+        qr: 'コード決済',
+        points: 'ポイント',
+        ec: 'ECサイト',
+        other: 'その他'
+    };
+
+    container.innerHTML = customApis.map(api => `
+        <div class="custom-api-item">
+            <span class="api-name">${escapeHtml(api.name)}</span>
+            <span class="api-category-badge">${categoryLabels[api.category]}</span>
+            <button class="api-connect-btn" data-service="${api.id}" onclick="openApiConfigModal('${api.id}')">設定</button>
+            <button class="btn-delete" onclick="deleteCustomApi('${api.id}')">削除</button>
+        </div>
+    `).join('');
+
+    // SERVICE_INFOにカスタムAPIを追加
+    customApis.forEach(api => {
+        if (!SERVICE_INFO[api.id]) {
+            SERVICE_INFO[api.id] = {
+                name: api.name,
+                category: api.category,
+                defaultConfig: { authType: 'apikey' }
+            };
+        }
+    });
+}
+
+// カスタムAPIを削除
+function deleteCustomApi(id) {
+    if (!confirm('このカスタムAPIを削除しますか？')) return;
+
+    customApis = customApis.filter(api => api.id !== id);
+    Storage.saveCustomApis(customApis);
+
+    delete SERVICE_INFO[id];
+    delete apiConfigs[id];
+    Storage.saveApiConfigs(apiConfigs);
+
+    renderCustomApis();
+    addSyncLog('info', 'カスタムAPIを削除しました');
+}
+
+// サービス名を取得
+function getServiceName(service) {
+    return SERVICE_INFO[service]?.name || service;
+}
+
+// DOMContentLoadedで初期化
+document.addEventListener('DOMContentLoaded', () => {
+    initApiLinkMode();
+    initApiConnection();
+});
+
 // グローバル関数として公開
 window.openEditModal = openEditModal;
 window.deleteExpense = deleteExpense;
+window.openApiConfigModal = openApiConfigModal;
+window.deleteCustomApi = deleteCustomApi;

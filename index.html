@@ -280,123 +280,422 @@
             <!-- 外部連携タブ -->
             <section id="link" class="tab-content">
                 <h2>外部サービス連携</h2>
-                <p class="link-description">各サービスから取得した明細を手動で入力・更新できます。</p>
 
-                <div class="link-services">
-                    <!-- 銀行口座 -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">🏦</span>
-                            <h3>銀行口座</h3>
-                        </div>
-                        <div class="service-accounts" id="bankAccounts">
-                            <div class="account-item">
-                                <input type="text" placeholder="口座名（例：〇〇銀行）" class="account-name">
-                                <input type="number" placeholder="残高" class="account-balance">
-                                <button class="remove-account">×</button>
+                <!-- 連携モード切替 -->
+                <div class="link-mode-tabs">
+                    <button class="link-mode-btn active" data-mode="api">API連携</button>
+                    <button class="link-mode-btn" data-mode="manual">手動入力</button>
+                </div>
+
+                <!-- API連携モード -->
+                <div id="apiLinkMode" class="link-mode-content active">
+                    <p class="link-description">外部サービスのAPIと連携して、残高・取引データを自動取得します。</p>
+
+                    <!-- API連携サービス一覧 -->
+                    <div class="api-services">
+                        <!-- 家計簿・資産管理サービス -->
+                        <div class="api-category">
+                            <h3>家計簿・資産管理サービス</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="moneyforward">
+                                    <div class="api-service-icon">💰</div>
+                                    <div class="api-service-info">
+                                        <h4>マネーフォワード ME</h4>
+                                        <p>銀行・カード・証券を一括管理</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-moneyforward">未接続</div>
+                                    <button class="api-connect-btn" data-service="moneyforward">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="zaim">
+                                    <div class="api-service-icon">📊</div>
+                                    <div class="api-service-info">
+                                        <h4>Zaim</h4>
+                                        <p>日本最大級の家計簿サービス</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-zaim">未接続</div>
+                                    <button class="api-connect-btn" data-service="zaim">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="freee">
+                                    <div class="api-service-icon">📈</div>
+                                    <div class="api-service-info">
+                                        <h4>freee</h4>
+                                        <p>クラウド会計ソフト</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-freee">未接続</div>
+                                    <button class="api-connect-btn" data-service="freee">接続設定</button>
+                                </div>
                             </div>
                         </div>
-                        <button class="add-account-btn" data-type="bank">+ 口座を追加</button>
-                    </div>
 
-                    <!-- 証券口座 -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">📈</span>
-                            <h3>証券口座</h3>
-                        </div>
-                        <div class="service-accounts" id="securitiesAccounts">
-                            <div class="account-item">
-                                <input type="text" placeholder="口座名（例：〇〇証券）" class="account-name">
-                                <input type="number" placeholder="評価額" class="account-balance">
-                                <button class="remove-account">×</button>
+                        <!-- 銀行API -->
+                        <div class="api-category">
+                            <h3>銀行（オープンバンキングAPI）</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="mufg">
+                                    <div class="api-service-icon">🏦</div>
+                                    <div class="api-service-info">
+                                        <h4>三菱UFJ銀行</h4>
+                                        <p>口座残高・入出金明細</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-mufg">未接続</div>
+                                    <button class="api-connect-btn" data-service="mufg">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="smbc">
+                                    <div class="api-service-icon">🏦</div>
+                                    <div class="api-service-info">
+                                        <h4>三井住友銀行</h4>
+                                        <p>口座残高・入出金明細</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-smbc">未接続</div>
+                                    <button class="api-connect-btn" data-service="smbc">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="mizuho">
+                                    <div class="api-service-icon">🏦</div>
+                                    <div class="api-service-info">
+                                        <h4>みずほ銀行</h4>
+                                        <p>口座残高・入出金明細</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-mizuho">未接続</div>
+                                    <button class="api-connect-btn" data-service="mizuho">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="rakuten-bank">
+                                    <div class="api-service-icon">🏦</div>
+                                    <div class="api-service-info">
+                                        <h4>楽天銀行</h4>
+                                        <p>口座残高・入出金明細</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-rakuten-bank">未接続</div>
+                                    <button class="api-connect-btn" data-service="rakuten-bank">接続設定</button>
+                                </div>
                             </div>
                         </div>
-                        <button class="add-account-btn" data-type="securities">+ 口座を追加</button>
-                    </div>
 
-                    <!-- クレジットカード -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">💳</span>
+                        <!-- 証券会社API -->
+                        <div class="api-category">
+                            <h3>証券会社</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="sbi">
+                                    <div class="api-service-icon">📈</div>
+                                    <div class="api-service-info">
+                                        <h4>SBI証券</h4>
+                                        <p>保有資産・取引履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-sbi">未接続</div>
+                                    <button class="api-connect-btn" data-service="sbi">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="rakuten-sec">
+                                    <div class="api-service-icon">📈</div>
+                                    <div class="api-service-info">
+                                        <h4>楽天証券</h4>
+                                        <p>保有資産・取引履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-rakuten-sec">未接続</div>
+                                    <button class="api-connect-btn" data-service="rakuten-sec">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="monex">
+                                    <div class="api-service-icon">📈</div>
+                                    <div class="api-service-info">
+                                        <h4>マネックス証券</h4>
+                                        <p>保有資産・取引履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-monex">未接続</div>
+                                    <button class="api-connect-btn" data-service="monex">接続設定</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- クレジットカード -->
+                        <div class="api-category">
                             <h3>クレジットカード</h3>
-                        </div>
-                        <div class="service-accounts" id="creditCards">
-                            <div class="account-item">
-                                <input type="text" placeholder="カード名" class="account-name">
-                                <input type="number" placeholder="利用額" class="account-balance">
-                                <button class="remove-account">×</button>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="rakuten-card">
+                                    <div class="api-service-icon">💳</div>
+                                    <div class="api-service-info">
+                                        <h4>楽天カード</h4>
+                                        <p>利用明細・ポイント</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-rakuten-card">未接続</div>
+                                    <button class="api-connect-btn" data-service="rakuten-card">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="aeon-card">
+                                    <div class="api-service-icon">💳</div>
+                                    <div class="api-service-info">
+                                        <h4>イオンカード</h4>
+                                        <p>利用明細・WAONポイント</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-aeon-card">未接続</div>
+                                    <button class="api-connect-btn" data-service="aeon-card">接続設定</button>
+                                </div>
                             </div>
                         </div>
-                        <button class="add-account-btn" data-type="credit">+ カードを追加</button>
+
+                        <!-- 電子マネー・コード決済 -->
+                        <div class="api-category">
+                            <h3>電子マネー・コード決済</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="paypay">
+                                    <div class="api-service-icon">📱</div>
+                                    <div class="api-service-info">
+                                        <h4>PayPay</h4>
+                                        <p>残高・決済履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-paypay">未接続</div>
+                                    <button class="api-connect-btn" data-service="paypay">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="linepay">
+                                    <div class="api-service-icon">📱</div>
+                                    <div class="api-service-info">
+                                        <h4>LINE Pay</h4>
+                                        <p>残高・決済履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-linepay">未接続</div>
+                                    <button class="api-connect-btn" data-service="linepay">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="merpay">
+                                    <div class="api-service-icon">📱</div>
+                                    <div class="api-service-info">
+                                        <h4>メルペイ</h4>
+                                        <p>残高・決済履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-merpay">未接続</div>
+                                    <button class="api-connect-btn" data-service="merpay">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="suica">
+                                    <div class="api-service-icon">🚃</div>
+                                    <div class="api-service-info">
+                                        <h4>モバイルSuica</h4>
+                                        <p>残高・利用履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-suica">未接続</div>
+                                    <button class="api-connect-btn" data-service="suica">接続設定</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ポイント -->
+                        <div class="api-category">
+                            <h3>ポイントサービス</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="rakuten-point">
+                                    <div class="api-service-icon">🎁</div>
+                                    <div class="api-service-info">
+                                        <h4>楽天ポイント</h4>
+                                        <p>ポイント残高・履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-rakuten-point">未接続</div>
+                                    <button class="api-connect-btn" data-service="rakuten-point">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="tpoint">
+                                    <div class="api-service-icon">🎁</div>
+                                    <div class="api-service-info">
+                                        <h4>Tポイント</h4>
+                                        <p>ポイント残高・履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-tpoint">未接続</div>
+                                    <button class="api-connect-btn" data-service="tpoint">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="dpoint">
+                                    <div class="api-service-icon">🎁</div>
+                                    <div class="api-service-info">
+                                        <h4>dポイント</h4>
+                                        <p>ポイント残高・履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-dpoint">未接続</div>
+                                    <button class="api-connect-btn" data-service="dpoint">接続設定</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ECサイト -->
+                        <div class="api-category">
+                            <h3>ECサイト</h3>
+                            <div class="api-service-grid">
+                                <div class="api-service-card" data-service="amazon">
+                                    <div class="api-service-icon">🛒</div>
+                                    <div class="api-service-info">
+                                        <h4>Amazon</h4>
+                                        <p>注文履歴・ギフト券残高</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-amazon">未接続</div>
+                                    <button class="api-connect-btn" data-service="amazon">接続設定</button>
+                                </div>
+
+                                <div class="api-service-card" data-service="rakuten-ichiba">
+                                    <div class="api-service-icon">🛒</div>
+                                    <div class="api-service-info">
+                                        <h4>楽天市場</h4>
+                                        <p>注文履歴</p>
+                                    </div>
+                                    <div class="api-service-status" id="status-rakuten-ichiba">未接続</div>
+                                    <button class="api-connect-btn" data-service="rakuten-ichiba">接続設定</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- カスタムAPI -->
+                        <div class="api-category">
+                            <h3>カスタムAPI接続</h3>
+                            <div class="custom-api-section">
+                                <p>独自のAPIエンドポイントを設定して接続できます。</p>
+                                <button id="addCustomApiBtn" class="add-custom-api-btn">+ カスタムAPIを追加</button>
+                                <div id="customApiList" class="custom-api-list"></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- 電子マネー -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">💰</span>
-                            <h3>電子マネー</h3>
+                    <!-- 同期コントロール -->
+                    <div class="sync-controls">
+                        <button id="syncAllBtn" class="sync-btn">
+                            <span class="sync-icon">🔄</span>
+                            すべて同期
+                        </button>
+                        <div class="last-sync">
+                            最終同期: <span id="lastSyncTime">未同期</span>
                         </div>
-                        <div class="service-accounts" id="eMoney">
-                            <div class="account-item">
-                                <input type="text" placeholder="名称（例：Suica）" class="account-name">
-                                <input type="number" placeholder="残高" class="account-balance">
-                                <button class="remove-account">×</button>
-                            </div>
-                        </div>
-                        <button class="add-account-btn" data-type="emoney">+ 電子マネーを追加</button>
                     </div>
 
-                    <!-- コード決済 -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">📱</span>
-                            <h3>コード決済</h3>
+                    <!-- 同期ログ -->
+                    <div class="sync-log">
+                        <h3>同期ログ</h3>
+                        <div id="syncLogContent" class="sync-log-content">
+                            <p class="no-log">同期履歴はありません</p>
                         </div>
-                        <div class="service-accounts" id="qrPayments">
-                            <div class="account-item">
-                                <input type="text" placeholder="名称（例：PayPay）" class="account-name">
-                                <input type="number" placeholder="残高" class="account-balance">
-                                <button class="remove-account">×</button>
-                            </div>
-                        </div>
-                        <button class="add-account-btn" data-type="qr">+ サービスを追加</button>
-                    </div>
-
-                    <!-- ポイント -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">🎁</span>
-                            <h3>ポイント</h3>
-                        </div>
-                        <div class="service-accounts" id="points">
-                            <div class="account-item">
-                                <input type="text" placeholder="名称（例：楽天ポイント）" class="account-name">
-                                <input type="number" placeholder="ポイント数" class="account-balance">
-                                <button class="remove-account">×</button>
-                            </div>
-                        </div>
-                        <button class="add-account-btn" data-type="points">+ ポイントを追加</button>
-                    </div>
-
-                    <!-- ECサイト -->
-                    <div class="service-card">
-                        <div class="service-header">
-                            <span class="service-icon">🛒</span>
-                            <h3>ECサイト残高</h3>
-                        </div>
-                        <div class="service-accounts" id="ecSites">
-                            <div class="account-item">
-                                <input type="text" placeholder="名称（例：Amazonギフト券）" class="account-name">
-                                <input type="number" placeholder="残高" class="account-balance">
-                                <button class="remove-account">×</button>
-                            </div>
-                        </div>
-                        <button class="add-account-btn" data-type="ec">+ サイトを追加</button>
                     </div>
                 </div>
 
-                <button id="saveLinkedAccounts" class="submit-btn">連携情報を保存</button>
+                <!-- 手動入力モード -->
+                <div id="manualLinkMode" class="link-mode-content">
+                    <p class="link-description">各サービスから取得した明細を手動で入力・更新できます。</p>
+
+                    <div class="link-services">
+                        <!-- 銀行口座 -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">🏦</span>
+                                <h3>銀行口座</h3>
+                            </div>
+                            <div class="service-accounts" id="bankAccounts">
+                                <div class="account-item">
+                                    <input type="text" placeholder="口座名（例：〇〇銀行）" class="account-name">
+                                    <input type="number" placeholder="残高" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="bank">+ 口座を追加</button>
+                        </div>
+
+                        <!-- 証券口座 -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">📈</span>
+                                <h3>証券口座</h3>
+                            </div>
+                            <div class="service-accounts" id="securitiesAccounts">
+                                <div class="account-item">
+                                    <input type="text" placeholder="口座名（例：〇〇証券）" class="account-name">
+                                    <input type="number" placeholder="評価額" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="securities">+ 口座を追加</button>
+                        </div>
+
+                        <!-- クレジットカード -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">💳</span>
+                                <h3>クレジットカード</h3>
+                            </div>
+                            <div class="service-accounts" id="creditCards">
+                                <div class="account-item">
+                                    <input type="text" placeholder="カード名" class="account-name">
+                                    <input type="number" placeholder="利用額" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="credit">+ カードを追加</button>
+                        </div>
+
+                        <!-- 電子マネー -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">💰</span>
+                                <h3>電子マネー</h3>
+                            </div>
+                            <div class="service-accounts" id="eMoney">
+                                <div class="account-item">
+                                    <input type="text" placeholder="名称（例：Suica）" class="account-name">
+                                    <input type="number" placeholder="残高" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="emoney">+ 電子マネーを追加</button>
+                        </div>
+
+                        <!-- コード決済 -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">📱</span>
+                                <h3>コード決済</h3>
+                            </div>
+                            <div class="service-accounts" id="qrPayments">
+                                <div class="account-item">
+                                    <input type="text" placeholder="名称（例：PayPay）" class="account-name">
+                                    <input type="number" placeholder="残高" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="qr">+ サービスを追加</button>
+                        </div>
+
+                        <!-- ポイント -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">🎁</span>
+                                <h3>ポイント</h3>
+                            </div>
+                            <div class="service-accounts" id="points">
+                                <div class="account-item">
+                                    <input type="text" placeholder="名称（例：楽天ポイント）" class="account-name">
+                                    <input type="number" placeholder="ポイント数" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="points">+ ポイントを追加</button>
+                        </div>
+
+                        <!-- ECサイト -->
+                        <div class="service-card">
+                            <div class="service-header">
+                                <span class="service-icon">🛒</span>
+                                <h3>ECサイト残高</h3>
+                            </div>
+                            <div class="service-accounts" id="ecSites">
+                                <div class="account-item">
+                                    <input type="text" placeholder="名称（例：Amazonギフト券）" class="account-name">
+                                    <input type="number" placeholder="残高" class="account-balance">
+                                    <button class="remove-account">×</button>
+                                </div>
+                            </div>
+                            <button class="add-account-btn" data-type="ec">+ サイトを追加</button>
+                        </div>
+                    </div>
+
+                    <button id="saveLinkedAccounts" class="submit-btn">連携情報を保存</button>
+                </div>
 
                 <!-- 資産サマリー -->
                 <div class="asset-summary">
@@ -446,6 +745,167 @@
                         </select>
                     </div>
                     <button type="submit" class="submit-btn">更新</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- API接続設定モーダル -->
+        <div id="apiConfigModal" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close-modal">&times;</span>
+                <h3 id="apiConfigTitle">API接続設定</h3>
+                <div id="apiConfigContent">
+                    <input type="hidden" id="apiConfigService">
+
+                    <!-- 認証方式選択 -->
+                    <div class="form-group">
+                        <label>認証方式</label>
+                        <select id="apiAuthType">
+                            <option value="oauth2">OAuth 2.0</option>
+                            <option value="apikey">APIキー</option>
+                            <option value="basic">Basic認証</option>
+                            <option value="bearer">Bearerトークン</option>
+                        </select>
+                    </div>
+
+                    <!-- OAuth 2.0設定 -->
+                    <div id="oauth2Settings" class="auth-settings">
+                        <div class="form-group">
+                            <label>クライアントID</label>
+                            <input type="text" id="oauthClientId" placeholder="クライアントID">
+                        </div>
+                        <div class="form-group">
+                            <label>クライアントシークレット</label>
+                            <input type="password" id="oauthClientSecret" placeholder="クライアントシークレット">
+                        </div>
+                        <div class="form-group">
+                            <label>認可エンドポイント</label>
+                            <input type="url" id="oauthAuthUrl" placeholder="https://api.example.com/oauth/authorize">
+                        </div>
+                        <div class="form-group">
+                            <label>トークンエンドポイント</label>
+                            <input type="url" id="oauthTokenUrl" placeholder="https://api.example.com/oauth/token">
+                        </div>
+                        <div class="form-group">
+                            <label>スコープ（カンマ区切り）</label>
+                            <input type="text" id="oauthScopes" placeholder="read,write,accounts">
+                        </div>
+                        <div class="form-group">
+                            <label>リダイレクトURI</label>
+                            <input type="url" id="oauthRedirectUri" placeholder="https://yourapp.com/callback" readonly>
+                        </div>
+                    </div>
+
+                    <!-- APIキー設定 -->
+                    <div id="apikeySettings" class="auth-settings" style="display: none;">
+                        <div class="form-group">
+                            <label>APIキー</label>
+                            <input type="password" id="apiKey" placeholder="APIキーを入力">
+                        </div>
+                        <div class="form-group">
+                            <label>APIキーヘッダー名</label>
+                            <input type="text" id="apiKeyHeader" placeholder="X-API-Key" value="X-API-Key">
+                        </div>
+                    </div>
+
+                    <!-- Basic認証設定 -->
+                    <div id="basicSettings" class="auth-settings" style="display: none;">
+                        <div class="form-group">
+                            <label>ユーザー名</label>
+                            <input type="text" id="basicUsername" placeholder="ユーザー名">
+                        </div>
+                        <div class="form-group">
+                            <label>パスワード</label>
+                            <input type="password" id="basicPassword" placeholder="パスワード">
+                        </div>
+                    </div>
+
+                    <!-- Bearerトークン設定 -->
+                    <div id="bearerSettings" class="auth-settings" style="display: none;">
+                        <div class="form-group">
+                            <label>アクセストークン</label>
+                            <input type="password" id="bearerToken" placeholder="アクセストークン">
+                        </div>
+                    </div>
+
+                    <!-- APIエンドポイント設定 -->
+                    <div class="api-endpoints-section">
+                        <h4>APIエンドポイント</h4>
+                        <div class="form-group">
+                            <label>ベースURL</label>
+                            <input type="url" id="apiBaseUrl" placeholder="https://api.example.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label>残高取得エンドポイント</label>
+                            <input type="text" id="apiBalanceEndpoint" placeholder="/accounts/balance">
+                        </div>
+                        <div class="form-group">
+                            <label>取引履歴エンドポイント</label>
+                            <input type="text" id="apiTransactionsEndpoint" placeholder="/accounts/transactions">
+                        </div>
+                    </div>
+
+                    <!-- データマッピング設定 -->
+                    <div class="data-mapping-section">
+                        <h4>データマッピング</h4>
+                        <p class="mapping-description">APIレスポンスのフィールド名を指定してください（JSONPath形式）</p>
+                        <div class="form-group">
+                            <label>残高フィールド</label>
+                            <input type="text" id="mappingBalance" placeholder="data.balance" value="data.balance">
+                        </div>
+                        <div class="form-group">
+                            <label>取引日付フィールド</label>
+                            <input type="text" id="mappingDate" placeholder="data.transactions[].date" value="data.transactions[].date">
+                        </div>
+                        <div class="form-group">
+                            <label>取引金額フィールド</label>
+                            <input type="text" id="mappingAmount" placeholder="data.transactions[].amount" value="data.transactions[].amount">
+                        </div>
+                        <div class="form-group">
+                            <label>取引説明フィールド</label>
+                            <input type="text" id="mappingDescription" placeholder="data.transactions[].description" value="data.transactions[].description">
+                        </div>
+                    </div>
+
+                    <div class="api-config-actions">
+                        <button id="testApiConnection" class="test-btn">接続テスト</button>
+                        <button id="startOAuthFlow" class="oauth-btn" style="display: none;">OAuth認証を開始</button>
+                        <button id="saveApiConfig" class="submit-btn">設定を保存</button>
+                    </div>
+
+                    <div id="apiTestResult" class="api-test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- カスタムAPI追加モーダル -->
+        <div id="customApiModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h3>カスタムAPIを追加</h3>
+                <form id="customApiForm">
+                    <div class="form-group">
+                        <label>サービス名</label>
+                        <input type="text" id="customApiName" placeholder="例：自社システム" required>
+                    </div>
+                    <div class="form-group">
+                        <label>カテゴリ</label>
+                        <select id="customApiCategory" required>
+                            <option value="bank">銀行口座</option>
+                            <option value="securities">証券口座</option>
+                            <option value="credit">クレジットカード</option>
+                            <option value="emoney">電子マネー</option>
+                            <option value="qr">コード決済</option>
+                            <option value="points">ポイント</option>
+                            <option value="ec">ECサイト</option>
+                            <option value="other">その他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>説明</label>
+                        <input type="text" id="customApiDescription" placeholder="サービスの説明">
+                    </div>
+                    <button type="submit" class="submit-btn">追加</button>
                 </form>
             </div>
         </div>
