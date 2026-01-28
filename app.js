@@ -1,6 +1,64 @@
 // 家計簿アプリ - メインJavaScript
 
-// データストレージ
+// API ベースURL
+const API_BASE = '/api';
+
+// データベースAPI通信ヘルパー
+const DbApi = {
+    async get(endpoint) {
+        try {
+            const res = await fetch(`${API_BASE}${endpoint}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            console.warn(`DB読み込み失敗 (${endpoint}):`, err.message);
+            return null;
+        }
+    },
+
+    async post(endpoint, data) {
+        try {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            console.warn(`DB書き込み失敗 (${endpoint}):`, err.message);
+            return null;
+        }
+    },
+
+    async put(endpoint, data) {
+        try {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            console.warn(`DB更新失敗 (${endpoint}):`, err.message);
+            return null;
+        }
+    },
+
+    async delete(endpoint) {
+        try {
+            const res = await fetch(`${API_BASE}${endpoint}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            console.warn(`DB削除失敗 (${endpoint}):`, err.message);
+            return null;
+        }
+    }
+};
+
+// データストレージ（localStorage キャッシュ + DB永続化）
 const Storage = {
     KEYS: {
         EXPENSES: 'household_expenses',
@@ -17,6 +75,7 @@ const Storage = {
         QUICK_INPUTS: 'household_quick_inputs'
     },
 
+    // localStorageキャッシュ操作
     get(key) {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
@@ -26,118 +85,179 @@ const Storage = {
         localStorage.setItem(key, JSON.stringify(data));
     },
 
+    // --- 支出 ---
     getExpenses() {
         return this.get(this.KEYS.EXPENSES) || [];
     },
-
     saveExpenses(expenses) {
         this.set(this.KEYS.EXPENSES, expenses);
+        DbApi.put('/expenses', expenses).catch(() => {});
     },
 
+    // --- 予算 ---
     getBudgets() {
         return this.get(this.KEYS.BUDGETS) || {};
     },
-
     saveBudgets(budgets) {
         this.set(this.KEYS.BUDGETS, budgets);
+        DbApi.put('/budgets', budgets).catch(() => {});
     },
 
+    // --- 連携口座 ---
     getLinkedAccounts() {
         return this.get(this.KEYS.LINKED_ACCOUNTS) || {
-            bank: [],
-            securities: [],
-            credit: [],
-            emoney: [],
-            qr: [],
-            points: [],
-            ec: []
+            bank: [], securities: [], credit: [], emoney: [], qr: [], points: [], ec: []
         };
     },
-
     saveLinkedAccounts(accounts) {
         this.set(this.KEYS.LINKED_ACCOUNTS, accounts);
+        DbApi.put('/linked-accounts', accounts).catch(() => {});
     },
 
+    // --- アカウント連携設定 ---
     getApiConfigs() {
         return this.get(this.KEYS.API_CONFIGS) || {};
     },
-
     saveApiConfigs(configs) {
         this.set(this.KEYS.API_CONFIGS, configs);
+        DbApi.put('/connected-accounts', configs).catch(() => {});
     },
 
+    // --- 同期ログ ---
     getSyncLogs() {
         return this.get(this.KEYS.SYNC_LOGS) || [];
     },
-
     saveSyncLogs(logs) {
-        // 最新100件のみ保持
         const trimmedLogs = logs.slice(-100);
         this.set(this.KEYS.SYNC_LOGS, trimmedLogs);
+        DbApi.put('/sync-logs', trimmedLogs).catch(() => {});
     },
 
+    // --- カスタムAPI ---
     getCustomApis() {
         return this.get(this.KEYS.CUSTOM_APIS) || [];
     },
-
     saveCustomApis(apis) {
         this.set(this.KEYS.CUSTOM_APIS, apis);
     },
 
+    // --- 収入 ---
     getIncomes() {
         return this.get(this.KEYS.INCOMES) || [];
     },
-
     saveIncomes(incomes) {
         this.set(this.KEYS.INCOMES, incomes);
+        DbApi.put('/incomes', incomes).catch(() => {});
     },
 
+    // --- 定期支出 ---
     getSubscriptions() {
         return this.get(this.KEYS.SUBSCRIPTIONS) || [];
     },
-
     saveSubscriptions(subscriptions) {
         this.set(this.KEYS.SUBSCRIPTIONS, subscriptions);
+        DbApi.put('/subscriptions', subscriptions).catch(() => {});
     },
 
+    // --- 目標 ---
     getGoals() {
         return this.get(this.KEYS.GOALS) || [];
     },
-
     saveGoals(goals) {
         this.set(this.KEYS.GOALS, goals);
+        DbApi.put('/goals', goals).catch(() => {});
     },
 
+    // --- 家族メンバー ---
     getFamilyMembers() {
         return this.get(this.KEYS.FAMILY_MEMBERS) || [];
     },
-
     saveFamilyMembers(members) {
         this.set(this.KEYS.FAMILY_MEMBERS, members);
+        DbApi.put('/family', members).catch(() => {});
     },
 
+    // --- ゲーミフィケーション ---
     getGamification() {
         return this.get(this.KEYS.GAMIFICATION) || {
-            level: 1,
-            exp: 0,
-            currentStreak: 0,
-            maxStreak: 0,
-            lastRecordDate: null,
-            badges: [],
-            challenges: []
+            level: 1, exp: 0, currentStreak: 0, maxStreak: 0,
+            lastRecordDate: null, badges: [], challenges: []
         };
     },
-
     saveGamification(data) {
         this.set(this.KEYS.GAMIFICATION, data);
+        DbApi.put('/gamification', data).catch(() => {});
     },
 
+    // --- クイック入力 ---
     getQuickInputs() {
         return this.get(this.KEYS.QUICK_INPUTS) || [];
     },
-
     saveQuickInputs(inputs) {
         this.set(this.KEYS.QUICK_INPUTS, inputs);
+        DbApi.put('/quick-inputs', inputs).catch(() => {});
+    },
+
+    // --- DBからlocalStorageへ同期 ---
+    async syncFromDatabase() {
+        try {
+            const data = await DbApi.get('/all-data');
+            if (!data) return false;
+
+            if (data.expenses && data.expenses.length > 0) this.set(this.KEYS.EXPENSES, data.expenses);
+            if (data.incomes && data.incomes.length > 0) this.set(this.KEYS.INCOMES, data.incomes);
+            if (data.budgets && Object.keys(data.budgets).length > 0) this.set(this.KEYS.BUDGETS, data.budgets);
+            if (data.subscriptions && data.subscriptions.length > 0) this.set(this.KEYS.SUBSCRIPTIONS, data.subscriptions);
+            if (data.goals && data.goals.length > 0) this.set(this.KEYS.GOALS, data.goals);
+            if (data.familyMembers && data.familyMembers.length > 0) this.set(this.KEYS.FAMILY_MEMBERS, data.familyMembers);
+            if (data.gamification) this.set(this.KEYS.GAMIFICATION, data.gamification);
+            if (data.linkedAccounts) this.set(this.KEYS.LINKED_ACCOUNTS, data.linkedAccounts);
+            if (data.connectedAccounts && Object.keys(data.connectedAccounts).length > 0) this.set(this.KEYS.API_CONFIGS, data.connectedAccounts);
+            if (data.syncLogs && data.syncLogs.length > 0) this.set(this.KEYS.SYNC_LOGS, data.syncLogs);
+            if (data.quickInputs && data.quickInputs.length > 0) this.set(this.KEYS.QUICK_INPUTS, data.quickInputs);
+
+            console.log('データベースから同期完了');
+            return true;
+        } catch (err) {
+            console.warn('データベース同期失敗（localStorageで動作）:', err.message);
+            return false;
+        }
+    },
+
+    // --- localStorageからDBへ初回移行 ---
+    async migrateToDatabase() {
+        try {
+            const expenses = this.getExpenses();
+            const incomes = this.getIncomes();
+            const budgets = this.getBudgets();
+            const subscriptions = this.getSubscriptions();
+            const goals = this.getGoals();
+            const familyMembers = this.getFamilyMembers();
+            const gamification = this.getGamification();
+            const linkedAccounts = this.getLinkedAccounts();
+            const connectedAccounts = this.getApiConfigs();
+            const syncLogs = this.getSyncLogs();
+            const quickInputs = this.getQuickInputs();
+
+            if (expenses.length > 0) await DbApi.post('/expenses/bulk', expenses);
+            if (incomes.length > 0) await DbApi.post('/incomes/bulk', incomes);
+            if (Object.keys(budgets).length > 0) await DbApi.put('/budgets', budgets);
+            if (subscriptions.length > 0) await DbApi.post('/subscriptions/bulk', subscriptions);
+            if (goals.length > 0) await DbApi.post('/goals/bulk', goals);
+            if (familyMembers.length > 0) await DbApi.post('/family/bulk', familyMembers);
+            await DbApi.put('/gamification', gamification);
+            await DbApi.put('/linked-accounts', linkedAccounts);
+            if (Object.keys(connectedAccounts).length > 0) await DbApi.put('/connected-accounts', connectedAccounts);
+            if (syncLogs.length > 0) await DbApi.put('/sync-logs', syncLogs);
+            if (quickInputs.length > 0) await DbApi.post('/quick-inputs/bulk', quickInputs);
+
+            localStorage.setItem('db_migrated', 'true');
+            console.log('localStorageからデータベースへの移行完了');
+            return true;
+        } catch (err) {
+            console.warn('データベース移行失敗:', err.message);
+            return false;
+        }
     }
 };
 
@@ -172,9 +292,8 @@ let familyMembers = [];
 let gamificationData = {};
 let quickInputs = [];
 
-// 初期化
-document.addEventListener('DOMContentLoaded', () => {
-    // データ読み込み
+// localStorageキャッシュからデータを読み込み
+function loadDataFromCache() {
     expenses = Storage.getExpenses();
     budgets = Storage.getBudgets();
     linkedAccounts = Storage.getLinkedAccounts();
@@ -184,6 +303,19 @@ document.addEventListener('DOMContentLoaded', () => {
     familyMembers = Storage.getFamilyMembers();
     gamificationData = Storage.getGamification();
     quickInputs = Storage.getQuickInputs();
+}
+
+// 画面を再描画
+function refreshUI() {
+    renderExpenseTable();
+    updateBudgetComparison();
+    checkStreak();
+}
+
+// 初期化
+document.addEventListener('DOMContentLoaded', async () => {
+    // まずlocalStorageからデータを即時読み込み（高速）
+    loadDataFromCache();
 
     // 各機能の初期化
     initTabs();
@@ -216,9 +348,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('chartMonth').value = thisMonth;
 
     // 初期表示
-    renderExpenseTable();
-    updateBudgetComparison();
-    checkStreak();
+    refreshUI();
+
+    // データベースとの同期（非同期）
+    try {
+        const isMigrated = localStorage.getItem('db_migrated');
+        if (!isMigrated) {
+            // 初回起動：localStorageのデータをDBへ移行
+            await Storage.migrateToDatabase();
+        }
+        // DBからデータを同期
+        const synced = await Storage.syncFromDatabase();
+        if (synced) {
+            // DB同期後にデータを再読み込みして画面更新
+            loadDataFromCache();
+            refreshUI();
+        }
+    } catch (err) {
+        console.warn('DB同期スキップ（ローカルモードで動作）:', err.message);
+    }
 });
 
 // タブ切り替え
