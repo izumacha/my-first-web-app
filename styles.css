@@ -1247,6 +1247,341 @@ tr:hover {
     color: #17a2b8;
 }
 
+/* ========================================
+   アカウント連携スタイル
+   ======================================== */
+
+.link-description-box {
+    background: linear-gradient(135deg, #e8f4f8 0%, #f0f7ff 100%);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    border-left: 4px solid #667eea;
+}
+
+.link-description-box p {
+    margin: 0 0 8px;
+    color: #333;
+}
+
+.link-description-box .link-note {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+}
+
+.linked-services {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.service-category {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 15px;
+}
+
+.service-category h3 {
+    margin: 0 0 15px;
+    font-size: 18px;
+    color: #333;
+}
+
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.service-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.service-item:hover {
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.service-item.connected {
+    border: 2px solid #28a745;
+}
+
+.service-item .service-icon {
+    font-size: 28px;
+    width: 40px;
+    text-align: center;
+}
+
+.service-item .service-info {
+    flex: 1;
+}
+
+.service-item .service-info h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: #333;
+}
+
+.service-item .service-status {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: #e9ecef;
+    color: #666;
+}
+
+.service-item .service-status.connected {
+    background: #d4edda;
+    color: #155724;
+}
+
+.service-item .connect-btn {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.service-item .connect-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+}
+
+.service-item.connected .connect-btn {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+/* 連携済みアカウント */
+.connected-accounts-section {
+    margin: 25px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 15px;
+}
+
+.connected-accounts-section h3 {
+    margin: 0 0 15px;
+}
+
+.connected-accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.connected-account-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    border-left: 4px solid #28a745;
+}
+
+.connected-account-item .account-icon {
+    font-size: 24px;
+}
+
+.connected-account-item .account-info {
+    flex: 1;
+}
+
+.connected-account-item .account-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.connected-account-item .account-last-sync {
+    font-size: 12px;
+    color: #666;
+}
+
+.connected-account-item .account-balance {
+    font-weight: 700;
+    font-size: 18px;
+    color: #667eea;
+}
+
+.connected-account-item .disconnect-btn {
+    padding: 6px 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.no-accounts {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+}
+
+/* アカウントログインモーダル */
+.login-service-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.login-service-icon {
+    font-size: 32px;
+}
+
+.login-service-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+}
+
+.login-form-section {
+    padding: 10px 0;
+}
+
+.login-notice {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.login-notice p {
+    margin: 0 0 5px;
+    color: #333;
+}
+
+.login-notice .notice-small {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.login-result {
+    margin: 15px 0;
+    padding: 12px;
+    border-radius: 8px;
+    display: none;
+}
+
+.login-result.show {
+    display: block;
+}
+
+.login-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.login-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.login-result.loading {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.login-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.login-btn {
+    flex: 1;
+    padding: 14px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.login-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.cancel-btn {
+    padding: 14px 25px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.cancel-btn:hover {
+    background: #5a6268;
+}
+
+@media (max-width: 768px) {
+    .service-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .service-item {
+        flex-wrap: wrap;
+    }
+
+    .service-item .connect-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .login-actions {
+        flex-direction: column;
+    }
+}
+
 .no-log {
     color: #999;
     text-align: center;
