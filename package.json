@@ -2,8 +2,10 @@
   "name": "household-budget-app",
   "version": "1.0.0",
   "description": "家計簿アプリ - 予算管理、外部API連携、レシートOCR機能付き",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -34,5 +36,10 @@
     "collectCoverageFrom": [
       "app.js"
     ]
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
   }
 }
