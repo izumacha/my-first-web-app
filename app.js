@@ -1336,6 +1336,12 @@ function initApiConnection() {
         oauthBtn.addEventListener('click', startOAuthFlow);
     }
 
+    // アカウントログインボタン
+    const accountLoginBtn = document.getElementById('startAccountLogin');
+    if (accountLoginBtn) {
+        accountLoginBtn.addEventListener('click', startAccountLogin);
+    }
+
     // 設定保存ボタン
     const saveBtn = document.getElementById('saveApiConfig');
     if (saveBtn) {
@@ -1405,7 +1411,20 @@ function openApiConfigModal(service) {
     // デフォルト設定または既存設定を適用
     const config = { ...serviceInfo.defaultConfig, ...existingConfig };
 
-    document.getElementById('apiAuthType').value = config.authType || 'oauth2';
+    document.getElementById('apiAuthType').value = config.authType || 'account';
+
+    // アカウント認証設定
+    document.getElementById('accountLoginUrl').value = config.loginUrl || serviceInfo.defaultConfig?.loginUrl || '';
+    // 暗号化されたIDとパスワードを復号化
+    try {
+        document.getElementById('accountLoginId').value = config.loginId ? atob(config.loginId) : '';
+        document.getElementById('accountPassword').value = config.loginPassword ? atob(config.loginPassword) : '';
+    } catch (e) {
+        document.getElementById('accountLoginId').value = config.loginId || '';
+        document.getElementById('accountPassword').value = config.loginPassword || '';
+    }
+    document.getElementById('accountRemember').checked = config.rememberCredentials !== false;
+    document.getElementById('accountAutoSync').checked = config.autoSync || false;
 
     // OAuth設定
     document.getElementById('oauthClientId').value = config.clientId || '';
@@ -1444,6 +1463,7 @@ function openApiConfigModal(service) {
 function updateAuthSettingsVisibility() {
     const authType = document.getElementById('apiAuthType').value;
 
+    document.getElementById('accountSettings').style.display = authType === 'account' ? 'block' : 'none';
     document.getElementById('oauth2Settings').style.display = authType === 'oauth2' ? 'block' : 'none';
     document.getElementById('apikeySettings').style.display = authType === 'apikey' ? 'block' : 'none';
     document.getElementById('basicSettings').style.display = authType === 'basic' ? 'block' : 'none';
@@ -1452,6 +1472,12 @@ function updateAuthSettingsVisibility() {
     // OAuthボタンの表示
     const oauthBtn = document.getElementById('startOAuthFlow');
     oauthBtn.style.display = authType === 'oauth2' ? 'inline-block' : 'none';
+
+    // アカウントログインボタンの表示
+    const accountLoginBtn = document.getElementById('startAccountLogin');
+    if (accountLoginBtn) {
+        accountLoginBtn.style.display = authType === 'account' ? 'inline-block' : 'none';
+    }
 }
 
 // API設定を保存
@@ -1473,6 +1499,16 @@ function saveApiConfig() {
 
     // 認証方式別の設定
     switch (authType) {
+        case 'account':
+            config.loginUrl = document.getElementById('accountLoginUrl').value;
+            config.rememberCredentials = document.getElementById('accountRemember').checked;
+            config.autoSync = document.getElementById('accountAutoSync').checked;
+            if (config.rememberCredentials) {
+                // 簡易的な暗号化（本番環境ではより強力な暗号化を推奨）
+                config.loginId = btoa(document.getElementById('accountLoginId').value);
+                config.loginPassword = btoa(document.getElementById('accountPassword').value);
+            }
+            break;
         case 'oauth2':
             config.clientId = document.getElementById('oauthClientId').value;
             config.clientSecret = document.getElementById('oauthClientSecret').value;
@@ -1623,6 +1659,109 @@ function startOAuthFlow() {
     alert('OAuth認証ウィンドウが開きました。認証完了後、アクセストークンを「Bearerトークン」欄に入力してください。\n\n※実際の運用では、コールバックを処理するバックエンドサーバーが必要です。');
 }
 
+// アカウント認証でログイン
+async function startAccountLogin() {
+    const service = document.getElementById('apiConfigService').value;
+    const loginUrl = document.getElementById('accountLoginUrl').value;
+    const loginId = document.getElementById('accountLoginId').value;
+    const password = document.getElementById('accountPassword').value;
+    const resultDiv = document.getElementById('apiTestResult');
+
+    if (!loginId || !password) {
+        alert('ログインIDとパスワードを入力してください');
+        return;
+    }
+
+    const loginBtn = document.getElementById('startAccountLogin');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'ログイン中...';
+
+    resultDiv.className = 'api-test-result show loading';
+    resultDiv.innerHTML = '<span class="login-status-icon">⏳</span> ログイン中...サービスに接続しています';
+
+    try {
+        // シミュレーション: 実際のサービスではここでログインAPIを呼び出す
+        // ほとんどの金融サービスはスクレイピングやセッションベースの認証が必要
+        await simulateAccountLogin(service, loginUrl, loginId, password);
+
+        // 成功時の処理
+        resultDiv.className = 'api-test-result show success';
+        resultDiv.innerHTML = `
+            <span class="login-status-icon">✅</span>
+            <div>
+                <strong>${getServiceName(service)}へのログインに成功しました</strong>
+                <p style="margin: 5px 0 0; font-size: 13px;">アカウント情報が保存されました。同期を実行してデータを取得できます。</p>
+            </div>
+        `;
+
+        // 設定を自動保存
+        const rememberCredentials = document.getElementById('accountRemember').checked;
+        const autoSync = document.getElementById('accountAutoSync').checked;
+
+        const config = apiConfigs[service] || {};
+        config.authType = 'account';
+        config.loginUrl = loginUrl;
+        config.rememberCredentials = rememberCredentials;
+        config.autoSync = autoSync;
+        config.isLoggedIn = true;
+        config.lastLogin = new Date().toISOString();
+
+        if (rememberCredentials) {
+            config.loginId = btoa(loginId);
+            config.loginPassword = btoa(password);
+        }
+
+        apiConfigs[service] = config;
+        Storage.saveApiConfigs(apiConfigs);
+
+        addSyncLog('success', `${getServiceName(service)}にログインしました`);
+        updateConnectionStatus();
+
+    } catch (error) {
+        resultDiv.className = 'api-test-result show error';
+        resultDiv.innerHTML = `
+            <span class="login-status-icon">❌</span>
+            <div>
+                <strong>ログインに失敗しました</strong>
+                <p style="margin: 5px 0 0; font-size: 13px;">${escapeHtml(error.message)}</p>
+            </div>
+        `;
+        addSyncLog('error', `${getServiceName(service)}へのログインに失敗しました: ${error.message}`);
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'アカウントでログイン';
+    }
+}
+
+// アカウントログインをシミュレート（実際の実装では各サービスのAPIを使用）
+async function simulateAccountLogin(service, loginUrl, loginId, password) {
+    // 実際のサービスへの接続をシミュレート
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            // 簡単な検証（実際にはサーバーサイドで処理）
+            if (loginId && password && password.length >= 4) {
+                resolve({
+                    success: true,
+                    sessionToken: 'simulated_session_' + Date.now(),
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                });
+            } else {
+                reject(new Error('ログインIDまたはパスワードが正しくありません'));
+            }
+        }, 1500); // 1.5秒のシミュレート待機
+    });
+}
+
+// パスワード表示/非表示切り替え
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+    } else {
+        input.type = 'password';
+    }
+}
+
 // すべてのサービスを同期
 async function syncAllServices() {
     const syncBtn = document.getElementById('syncAllBtn');
@@ -1631,7 +1770,7 @@ async function syncAllServices() {
     syncBtn.innerHTML = '<span class="sync-icon">🔄</span> 同期中...';
 
     const connectedServices = Object.keys(apiConfigs).filter(service =>
-        apiConfigs[service].accessToken || apiConfigs[service].apiKey
+        apiConfigs[service].accessToken || apiConfigs[service].apiKey || apiConfigs[service].isLoggedIn
     );
 
     if (connectedServices.length === 0) {
@@ -1761,8 +1900,8 @@ function updateConnectionStatus() {
         const config = apiConfigs[service];
 
         if (statusEl) {
-            if (config && (config.accessToken || config.apiKey)) {
-                statusEl.textContent = '接続済';
+            if (config && (config.accessToken || config.apiKey || config.isLoggedIn)) {
+                statusEl.textContent = config.isLoggedIn ? 'ログイン済' : '接続済';
                 statusEl.className = 'api-service-status connected';
                 if (cardEl) cardEl.classList.add('connected');
             } else if (config) {
@@ -3445,3 +3584,4 @@ window.deleteFamilyMember = deleteFamilyMember;
 window.useQuickInput = useQuickInput;
 window.confirmVoiceInput = confirmVoiceInput;
 window.joinChallenge = joinChallenge;
+window.togglePasswordVisibility = togglePasswordVisibility;

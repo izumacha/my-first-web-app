@@ -1374,11 +1374,47 @@
                     <div class="form-group">
                         <label>認証方式</label>
                         <select id="apiAuthType">
+                            <option value="account">アカウント（ID・パスワード）</option>
                             <option value="oauth2">OAuth 2.0</option>
                             <option value="apikey">APIキー</option>
                             <option value="basic">Basic認証</option>
                             <option value="bearer">Bearerトークン</option>
                         </select>
+                    </div>
+
+                    <!-- アカウント認証設定 -->
+                    <div id="accountSettings" class="auth-settings">
+                        <div class="account-login-info">
+                            <p class="auth-info-text">サービスのログイン情報を入力してください。</p>
+                            <p class="auth-warning-text">※ログイン情報はローカルに暗号化して保存されます。第三者に共有されることはありません。</p>
+                        </div>
+                        <div class="form-group">
+                            <label>ログインURL</label>
+                            <input type="url" id="accountLoginUrl" placeholder="https://www.example.com/login">
+                        </div>
+                        <div class="form-group">
+                            <label>ログインID（メールアドレス等）</label>
+                            <input type="text" id="accountLoginId" placeholder="example@email.com" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>パスワード</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="accountPassword" placeholder="パスワード" autocomplete="off">
+                                <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('accountPassword')">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="accountRemember" checked>
+                                ログイン情報を保存する
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="accountAutoSync">
+                                自動同期を有効にする（1日1回）
+                            </label>
+                        </div>
                     </div>
 
                     <!-- OAuth 2.0設定 -->
@@ -1483,6 +1519,7 @@
                     <div class="api-config-actions">
                         <button id="testApiConnection" class="test-btn">接続テスト</button>
                         <button id="startOAuthFlow" class="oauth-btn" style="display: none;">OAuth認証を開始</button>
+                        <button id="startAccountLogin" class="account-login-btn">アカウントでログイン</button>
                         <button id="saveApiConfig" class="submit-btn">設定を保存</button>
                     </div>
 

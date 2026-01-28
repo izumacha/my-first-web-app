@@ -1324,6 +1324,130 @@ tr:hover {
     background: #e96b02;
 }
 
+/* アカウント認証スタイル */
+.account-login-info {
+    background: linear-gradient(135deg, #e8f4f8 0%, #f0f7ff 100%);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-left: 4px solid #17a2b8;
+}
+
+.auth-info-text {
+    margin: 0 0 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.auth-warning-text {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    flex: 1;
+    padding-right: 45px;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+    transition: opacity 0.3s;
+}
+
+.toggle-password-btn:hover {
+    opacity: 1;
+}
+
+.account-login-btn {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.account-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.account-login-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+#accountSettings .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+#accountSettings .form-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.login-status {
+    margin-top: 15px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.login-status.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.login-status.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.login-status.loading {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.login-status-icon {
+    font-size: 20px;
+}
+
+.saved-credentials-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #28a745;
+    color: white;
+    font-size: 11px;
+    border-radius: 12px;
+    margin-left: 10px;
+}
+
 .api-test-result {
     margin-top: 15px;
     padding: 15px;
