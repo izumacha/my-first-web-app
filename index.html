@@ -16,8 +16,15 @@
                 <button class="nav-btn active" data-tab="input">入力</button>
                 <button class="nav-btn" data-tab="list">一覧</button>
                 <button class="nav-btn" data-tab="budget">予算管理</button>
+                <button class="nav-btn" data-tab="income">収支</button>
+                <button class="nav-btn" data-tab="subscription">定期払い</button>
+                <button class="nav-btn" data-tab="goals">目標</button>
                 <button class="nav-btn" data-tab="chart">チャート</button>
                 <button class="nav-btn" data-tab="calendar">カレンダー</button>
+                <button class="nav-btn" data-tab="report">レポート</button>
+                <button class="nav-btn" data-tab="data">データ</button>
+                <button class="nav-btn" data-tab="family">家族</button>
+                <button class="nav-btn" data-tab="gamification">実績</button>
                 <button class="nav-btn" data-tab="link">外部連携</button>
             </nav>
         </header>
@@ -274,6 +281,612 @@
                 <div id="dayDetail" class="day-detail">
                     <h3 id="dayDetailTitle"></h3>
                     <div id="dayDetailContent"></div>
+                </div>
+            </section>
+
+            <!-- 収支管理タブ -->
+            <section id="income" class="tab-content">
+                <h2>収支管理</h2>
+
+                <!-- 収入入力 -->
+                <div class="income-section">
+                    <h3>収入を登録</h3>
+                    <form id="incomeForm" class="expense-form">
+                        <div class="form-group">
+                            <label for="incomeDate">日付</label>
+                            <input type="date" id="incomeDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="incomeDescription">説明</label>
+                            <input type="text" id="incomeDescription" placeholder="例: 給与、副業収入" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="incomeAmount">金額</label>
+                            <input type="number" id="incomeAmount" placeholder="0" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="incomeCategory">カテゴリ</label>
+                            <select id="incomeCategory" required>
+                                <option value="給与">給与</option>
+                                <option value="副業">副業</option>
+                                <option value="投資収益">投資収益</option>
+                                <option value="ボーナス">ボーナス</option>
+                                <option value="臨時収入">臨時収入</option>
+                                <option value="その他収入">その他収入</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="submit-btn income-btn">収入を登録</button>
+                    </form>
+                </div>
+
+                <!-- 収支サマリー -->
+                <div class="balance-summary">
+                    <h3>今月の収支</h3>
+                    <div class="balance-cards">
+                        <div class="balance-card income-card">
+                            <span class="balance-label">収入</span>
+                            <span id="totalIncome" class="balance-amount">¥0</span>
+                        </div>
+                        <div class="balance-card expense-card">
+                            <span class="balance-label">支出</span>
+                            <span id="totalExpenseBalance" class="balance-amount">¥0</span>
+                        </div>
+                        <div class="balance-card net-card">
+                            <span class="balance-label">収支</span>
+                            <span id="netBalance" class="balance-amount">¥0</span>
+                        </div>
+                        <div class="balance-card savings-card">
+                            <span class="balance-label">貯蓄率</span>
+                            <span id="savingsRate" class="balance-amount">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 収入一覧 -->
+                <div class="income-list">
+                    <h3>収入履歴</h3>
+                    <table id="incomeTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>説明</th>
+                                <th>金額</th>
+                                <th>カテゴリ</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incomeTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- 収支チャート -->
+                <div class="balance-chart">
+                    <h3>月次収支推移</h3>
+                    <canvas id="balanceChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 定期支出・サブスク管理タブ -->
+            <section id="subscription" class="tab-content">
+                <h2>定期支出・サブスクリプション管理</h2>
+
+                <!-- 定期支出登録 -->
+                <div class="subscription-form-section">
+                    <h3>定期支出を登録</h3>
+                    <form id="subscriptionForm" class="expense-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="subName">サービス名</label>
+                                <input type="text" id="subName" placeholder="例: Netflix" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="subAmount">金額</label>
+                                <input type="number" id="subAmount" placeholder="0" min="0" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="subCategory">カテゴリ</label>
+                                <select id="subCategory" required>
+                                    <option value="動画配信">動画配信</option>
+                                    <option value="音楽配信">音楽配信</option>
+                                    <option value="クラウド">クラウドストレージ</option>
+                                    <option value="ソフトウェア">ソフトウェア</option>
+                                    <option value="ジム">ジム・フィットネス</option>
+                                    <option value="保険">保険</option>
+                                    <option value="通信">通信費</option>
+                                    <option value="光熱費">光熱費</option>
+                                    <option value="家賃">家賃</option>
+                                    <option value="その他">その他</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="subCycle">支払いサイクル</label>
+                                <select id="subCycle" required>
+                                    <option value="monthly">毎月</option>
+                                    <option value="yearly">年1回</option>
+                                    <option value="weekly">毎週</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="subPayDay">支払日</label>
+                                <input type="number" id="subPayDay" min="1" max="31" placeholder="1-31" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="subStartDate">開始日</label>
+                                <input type="date" id="subStartDate" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="subNotify" checked>
+                                支払日の3日前に通知
+                            </label>
+                        </div>
+                        <button type="submit" class="submit-btn">登録</button>
+                    </form>
+                </div>
+
+                <!-- サブスクサマリー -->
+                <div class="subscription-summary">
+                    <div class="sub-summary-card">
+                        <span class="sub-summary-label">月額合計</span>
+                        <span id="monthlySubTotal" class="sub-summary-value">¥0</span>
+                    </div>
+                    <div class="sub-summary-card">
+                        <span class="sub-summary-label">年間合計</span>
+                        <span id="yearlySubTotal" class="sub-summary-value">¥0</span>
+                    </div>
+                    <div class="sub-summary-card">
+                        <span class="sub-summary-label">契約数</span>
+                        <span id="subCount" class="sub-summary-value">0件</span>
+                    </div>
+                </div>
+
+                <!-- 支払い予定 -->
+                <div class="upcoming-payments">
+                    <h3>今後の支払い予定</h3>
+                    <div id="upcomingPaymentsList" class="upcoming-list"></div>
+                </div>
+
+                <!-- サブスク一覧 -->
+                <div class="subscription-list">
+                    <h3>登録中のサブスクリプション</h3>
+                    <div id="subscriptionCards" class="subscription-cards"></div>
+                </div>
+            </section>
+
+            <!-- 目標設定・貯金管理タブ -->
+            <section id="goals" class="tab-content">
+                <h2>目標設定・貯金管理</h2>
+
+                <!-- 目標登録 -->
+                <div class="goal-form-section">
+                    <h3>新しい目標を設定</h3>
+                    <form id="goalForm" class="expense-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="goalName">目標名</label>
+                                <input type="text" id="goalName" placeholder="例: 旅行資金" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="goalIcon">アイコン</label>
+                                <select id="goalIcon">
+                                    <option value="✈️">✈️ 旅行</option>
+                                    <option value="🚗">🚗 車</option>
+                                    <option value="🏠">🏠 住宅</option>
+                                    <option value="💻">💻 家電</option>
+                                    <option value="📚">📚 教育</option>
+                                    <option value="💍">💍 結婚</option>
+                                    <option value="👶">👶 出産</option>
+                                    <option value="🎓">🎓 留学</option>
+                                    <option value="💰">💰 貯金</option>
+                                    <option value="🎯">🎯 その他</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="goalTarget">目標金額</label>
+                                <input type="number" id="goalTarget" placeholder="0" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="goalDeadline">目標期日</label>
+                                <input type="date" id="goalDeadline" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="goalInitial">現在の貯金額</label>
+                            <input type="number" id="goalInitial" placeholder="0" min="0" value="0">
+                        </div>
+                        <button type="submit" class="submit-btn">目標を設定</button>
+                    </form>
+                </div>
+
+                <!-- 目標一覧 -->
+                <div class="goals-list">
+                    <h3>設定中の目標</h3>
+                    <div id="goalCards" class="goal-cards"></div>
+                </div>
+
+                <!-- 貯金入金モーダル用の非表示入力 -->
+                <div id="depositModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h3>貯金を追加</h3>
+                        <form id="depositForm">
+                            <input type="hidden" id="depositGoalId">
+                            <div class="form-group">
+                                <label for="depositAmount">入金額</label>
+                                <input type="number" id="depositAmount" min="0" required>
+                            </div>
+                            <button type="submit" class="submit-btn">入金</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- レポート・分析タブ -->
+            <section id="report" class="tab-content">
+                <h2>レポート・分析</h2>
+
+                <!-- レポート期間選択 -->
+                <div class="report-controls">
+                    <div class="report-period">
+                        <label>期間:</label>
+                        <select id="reportPeriod">
+                            <option value="thisMonth">今月</option>
+                            <option value="lastMonth">先月</option>
+                            <option value="last3Months">過去3ヶ月</option>
+                            <option value="last6Months">過去6ヶ月</option>
+                            <option value="thisYear">今年</option>
+                            <option value="custom">カスタム</option>
+                        </select>
+                    </div>
+                    <div class="report-custom-period" id="customPeriod" style="display:none;">
+                        <input type="date" id="reportStartDate">
+                        <span>〜</span>
+                        <input type="date" id="reportEndDate">
+                    </div>
+                    <button id="generateReport" class="submit-btn">レポート生成</button>
+                    <button id="exportReportPdf" class="export-btn">PDF出力</button>
+                </div>
+
+                <!-- レポートサマリー -->
+                <div class="report-summary">
+                    <div class="report-card">
+                        <h4>総収入</h4>
+                        <p id="reportTotalIncome" class="report-value positive">¥0</p>
+                    </div>
+                    <div class="report-card">
+                        <h4>総支出</h4>
+                        <p id="reportTotalExpense" class="report-value negative">¥0</p>
+                    </div>
+                    <div class="report-card">
+                        <h4>収支差額</h4>
+                        <p id="reportNetBalance" class="report-value">¥0</p>
+                    </div>
+                    <div class="report-card">
+                        <h4>1日平均支出</h4>
+                        <p id="reportDailyAvg" class="report-value">¥0</p>
+                    </div>
+                </div>
+
+                <!-- 前期比較 -->
+                <div class="period-comparison">
+                    <h3>前期比較</h3>
+                    <div id="comparisonContent" class="comparison-grid"></div>
+                </div>
+
+                <!-- 異常検知 -->
+                <div class="anomaly-detection">
+                    <h3>異常支出アラート</h3>
+                    <div id="anomalyAlerts" class="anomaly-list">
+                        <p class="no-anomaly">異常な支出は検出されていません</p>
+                    </div>
+                </div>
+
+                <!-- カテゴリ別分析 -->
+                <div class="category-analysis">
+                    <h3>カテゴリ別分析</h3>
+                    <div class="analysis-charts">
+                        <div class="analysis-chart">
+                            <canvas id="reportCategoryChart"></canvas>
+                        </div>
+                        <div class="analysis-chart">
+                            <canvas id="reportTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- データ管理タブ -->
+            <section id="data" class="tab-content">
+                <h2>データ管理</h2>
+
+                <!-- エクスポート -->
+                <div class="data-section">
+                    <h3>データエクスポート</h3>
+                    <div class="export-options">
+                        <div class="export-option">
+                            <h4>CSV形式</h4>
+                            <p>Excelやスプレッドシートで開けます</p>
+                            <button id="exportCsv" class="export-btn">支出データをCSV出力</button>
+                            <button id="exportIncomeCsv" class="export-btn">収入データをCSV出力</button>
+                            <button id="exportAllCsv" class="export-btn">全データをCSV出力</button>
+                        </div>
+                        <div class="export-option">
+                            <h4>JSON形式</h4>
+                            <p>バックアップや他アプリへの移行用</p>
+                            <button id="exportJson" class="export-btn">全データをJSON出力</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- インポート -->
+                <div class="data-section">
+                    <h3>データインポート</h3>
+                    <div class="import-section">
+                        <div class="import-option">
+                            <h4>CSVインポート</h4>
+                            <p>銀行やカード会社の明細を取り込み</p>
+                            <input type="file" id="csvImportFile" accept=".csv" style="display:none;">
+                            <label for="csvImportFile" class="import-btn">CSVファイルを選択</label>
+                            <div id="csvPreview" class="csv-preview"></div>
+                            <div id="csvMapping" class="csv-mapping" style="display:none;">
+                                <h5>列のマッピング</h5>
+                                <div class="mapping-row">
+                                    <label>日付列:</label>
+                                    <select id="mapDate"></select>
+                                </div>
+                                <div class="mapping-row">
+                                    <label>説明列:</label>
+                                    <select id="mapDescription"></select>
+                                </div>
+                                <div class="mapping-row">
+                                    <label>金額列:</label>
+                                    <select id="mapAmount"></select>
+                                </div>
+                                <div class="mapping-row">
+                                    <label>カテゴリ列:</label>
+                                    <select id="mapCategory">
+                                        <option value="">なし（自動推測）</option>
+                                    </select>
+                                </div>
+                                <button id="importCsvData" class="submit-btn">インポート実行</button>
+                            </div>
+                        </div>
+                        <div class="import-option">
+                            <h4>JSONインポート</h4>
+                            <p>バックアップからの復元</p>
+                            <input type="file" id="jsonImportFile" accept=".json" style="display:none;">
+                            <label for="jsonImportFile" class="import-btn">JSONファイルを選択</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- バックアップ -->
+                <div class="data-section">
+                    <h3>自動バックアップ</h3>
+                    <div class="backup-settings">
+                        <label>
+                            <input type="checkbox" id="autoBackup">
+                            自動バックアップを有効化
+                        </label>
+                        <p class="backup-info">データはブラウザのローカルストレージに保存されます。定期的にエクスポートしてバックアップを取ることをお勧めします。</p>
+                        <div class="backup-status">
+                            <span>最終バックアップ: </span>
+                            <span id="lastBackupTime">なし</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- データクリア -->
+                <div class="data-section danger-zone">
+                    <h3>データ削除</h3>
+                    <p class="warning-text">この操作は取り消せません。事前にバックアップを取ってください。</p>
+                    <button id="clearExpenses" class="danger-btn">支出データを削除</button>
+                    <button id="clearAllData" class="danger-btn">全データを削除</button>
+                </div>
+            </section>
+
+            <!-- 家族・共有タブ -->
+            <section id="family" class="tab-content">
+                <h2>家族・共有機能</h2>
+
+                <!-- ユーザー管理 -->
+                <div class="family-section">
+                    <h3>ファミリーメンバー</h3>
+                    <div id="familyMembers" class="family-members">
+                        <div class="member-card current-user">
+                            <span class="member-icon">👤</span>
+                            <span class="member-name">自分（オーナー）</span>
+                        </div>
+                    </div>
+                    <button id="addFamilyMember" class="add-member-btn">+ メンバーを追加</button>
+                </div>
+
+                <!-- メンバー追加モーダル -->
+                <div id="memberModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h3>メンバーを追加</h3>
+                        <form id="memberForm">
+                            <div class="form-group">
+                                <label for="memberName">名前</label>
+                                <input type="text" id="memberName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="memberIcon">アイコン</label>
+                                <select id="memberIcon">
+                                    <option value="👨">👨</option>
+                                    <option value="👩">👩</option>
+                                    <option value="👦">👦</option>
+                                    <option value="👧">👧</option>
+                                    <option value="👴">👴</option>
+                                    <option value="👵">👵</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="memberRole">権限</label>
+                                <select id="memberRole">
+                                    <option value="editor">編集可能</option>
+                                    <option value="viewer">閲覧のみ</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="submit-btn">追加</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 支出の区分 -->
+                <div class="family-section">
+                    <h3>支出の区分</h3>
+                    <div class="expense-type-summary">
+                        <div class="expense-type-card">
+                            <h4>個人支出</h4>
+                            <p id="personalExpenseTotal">¥0</p>
+                        </div>
+                        <div class="expense-type-card">
+                            <h4>家族共有</h4>
+                            <p id="sharedExpenseTotal">¥0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- メンバー別支出 -->
+                <div class="family-section">
+                    <h3>メンバー別支出</h3>
+                    <div id="memberExpenses" class="member-expenses"></div>
+                </div>
+
+                <!-- 承認待ち -->
+                <div class="family-section">
+                    <h3>承認待ちの支出</h3>
+                    <div class="approval-settings">
+                        <label>
+                            <input type="checkbox" id="requireApproval">
+                            高額支出（<input type="number" id="approvalThreshold" value="10000" style="width:80px;">円以上）は承認を必要とする
+                        </label>
+                    </div>
+                    <div id="pendingApprovals" class="pending-list">
+                        <p class="no-pending">承認待ちの支出はありません</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ゲーミフィケーションタブ -->
+            <section id="gamification" class="tab-content">
+                <h2>実績・チャレンジ</h2>
+
+                <!-- ユーザーステータス -->
+                <div class="user-status">
+                    <div class="level-display">
+                        <span class="level-badge" id="userLevel">Lv.1</span>
+                        <span class="level-title" id="levelTitle">家計簿ビギナー</span>
+                    </div>
+                    <div class="exp-bar">
+                        <div id="expProgress" class="exp-progress" style="width: 0%"></div>
+                    </div>
+                    <p class="exp-text">次のレベルまで: <span id="expRemaining">100</span> EXP</p>
+                </div>
+
+                <!-- 連続記録 -->
+                <div class="streak-section">
+                    <h3>連続記録</h3>
+                    <div class="streak-cards">
+                        <div class="streak-card">
+                            <span class="streak-icon">🔥</span>
+                            <span id="currentStreak" class="streak-number">0</span>
+                            <span class="streak-label">日連続記録中</span>
+                        </div>
+                        <div class="streak-card">
+                            <span class="streak-icon">🏆</span>
+                            <span id="maxStreak" class="streak-number">0</span>
+                            <span class="streak-label">最長連続記録</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- アクティブチャレンジ -->
+                <div class="challenges-section">
+                    <h3>チャレンジ</h3>
+                    <div class="challenge-tabs">
+                        <button class="challenge-tab active" data-challenge="active">進行中</button>
+                        <button class="challenge-tab" data-challenge="available">参加可能</button>
+                        <button class="challenge-tab" data-challenge="completed">完了</button>
+                    </div>
+                    <div id="challengeList" class="challenge-list"></div>
+                </div>
+
+                <!-- バッジ -->
+                <div class="badges-section">
+                    <h3>獲得バッジ</h3>
+                    <div id="badgeList" class="badge-list"></div>
+                </div>
+
+                <!-- クイック入力 -->
+                <div class="quick-section">
+                    <h3>クイック入力</h3>
+                    <p>よく使う支出をワンタップで登録</p>
+                    <div id="quickInputList" class="quick-input-list"></div>
+                    <button id="addQuickInput" class="add-quick-btn">+ クイック入力を追加</button>
+                </div>
+
+                <!-- クイック入力追加モーダル -->
+                <div id="quickInputModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h3>クイック入力を追加</h3>
+                        <form id="quickInputForm">
+                            <div class="form-group">
+                                <label for="quickName">名前</label>
+                                <input type="text" id="quickName" placeholder="例: コンビニ" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="quickAmount">金額</label>
+                                <input type="number" id="quickAmount" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="quickCategory">カテゴリ</label>
+                                <select id="quickCategory" required>
+                                    <option value="食費">食費</option>
+                                    <option value="日用品">日用品</option>
+                                    <option value="交通費">交通費</option>
+                                    <option value="娯楽費">娯楽費</option>
+                                    <option value="その他">その他</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="quickIcon">アイコン</label>
+                                <select id="quickIcon">
+                                    <option value="🏪">🏪 コンビニ</option>
+                                    <option value="☕">☕ カフェ</option>
+                                    <option value="🍱">🍱 弁当</option>
+                                    <option value="🚃">🚃 電車</option>
+                                    <option value="🚕">🚕 タクシー</option>
+                                    <option value="🛒">🛒 買い物</option>
+                                    <option value="💊">💊 薬</option>
+                                    <option value="🎮">🎮 娯楽</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="submit-btn">追加</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 音声入力 -->
+                <div class="voice-section">
+                    <h3>音声入力</h3>
+                    <p>「コンビニで500円」のように話してください</p>
+                    <button id="voiceInputBtn" class="voice-btn">
+                        <span class="voice-icon">🎤</span>
+                        音声で入力
+                    </button>
+                    <div id="voiceStatus" class="voice-status"></div>
+                    <div id="voiceResult" class="voice-result"></div>
                 </div>
             </section>
 
