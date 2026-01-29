@@ -1,4 +1,4 @@
-// 家計簿アプリ - バックエンドサーバー（認証対応）
+// 家計簿アプリ - バックエンドサーバー（認証対応・Vercel対応）
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -12,14 +12,19 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
-// データベース初期化
-try {
-    db.initializeDatabase();
-    console.log('データベースを初期化しました');
-} catch (err) {
+// データベース初期化（非同期）
+let dbInitialized = false;
+const initPromise = db.initializeDatabase().then(() => {
+    dbInitialized = true;
+}).catch(err => {
     console.error('データベース初期化エラー:', err);
-    process.exit(1);
-}
+});
+
+// DB初期化待機ミドルウェア
+app.use(async (req, res, next) => {
+    if (!dbInitialized) await initPromise;
+    next();
+});
 
 // ========================================
 // 認証ミドルウェア
