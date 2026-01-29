@@ -1,289 +1,99 @@
-// データベース管理モジュール（sql.js版 - Vercel対応）
-const initSqlJs = require('sql.js');
+// データベース管理モジュール（Supabase版）
+const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
 const SALT_ROUNDS = 10;
 const SESSION_EXPIRY_DAYS = 30;
 
-let db = null;
-let dbReady = null;
+// Supabase クライアント初期化
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-// データベース初期化（非同期）
-async function initDb() {
-    if (db) return db;
-    const SQL = await initSqlJs();
-    db = new SQL.Database();
-    return db;
+if (!supabaseUrl || !supabaseKey) {
+    console.warn('警告: SUPABASE_URL または SUPABASE_ANON_KEY が設定されていません');
 }
 
-// 初期化Promise
-function getDbReady() {
-    if (!dbReady) {
-        dbReady = initDb();
-    }
-    return dbReady;
-}
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-// 同期的にDBを取得（初期化済み前提）
-function getDb() {
-    if (!db) throw new Error('Database not initialized');
-    return db;
-}
-
-// ========================================
-// テーブル作成
-// ========================================
+// 初期化（テーブルは Supabase ダッシュボードで作成済み前提）
 async function initializeDatabase() {
-    await getDbReady();
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL UNIQUE,
-            email TEXT UNIQUE,
-            password_hash TEXT NOT NULL,
-            display_name TEXT,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            token TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            expires_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS expenses (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            date TEXT NOT NULL,
-            description TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS incomes (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            date TEXT NOT NULL,
-            description TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS budgets (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            month TEXT NOT NULL,
-            category TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            UNIQUE(user_id, month, category),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            cycle TEXT NOT NULL DEFAULT 'monthly',
-            pay_day INTEGER DEFAULT 1,
-            start_date TEXT,
-            notify INTEGER DEFAULT 0,
-            active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS goals (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT '🎯',
-            target INTEGER NOT NULL,
-            deadline TEXT,
-            current INTEGER DEFAULT 0,
-            deposits TEXT DEFAULT '[]',
-            completed INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS family_members (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT '👤',
-            role TEXT DEFAULT 'member',
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS gamification (
-            user_id TEXT PRIMARY KEY,
-            level INTEGER DEFAULT 1,
-            exp INTEGER DEFAULT 0,
-            current_streak INTEGER DEFAULT 0,
-            max_streak INTEGER DEFAULT 0,
-            last_record_date TEXT,
-            badges TEXT DEFAULT '[]',
-            challenges TEXT DEFAULT '[]',
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS linked_accounts (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            name TEXT NOT NULL,
-            balance REAL DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS connected_accounts (
-            user_id TEXT NOT NULL,
-            service TEXT NOT NULL,
-            is_connected INTEGER DEFAULT 0,
-            connected_at TEXT,
-            last_sync TEXT,
-            login_id TEXT,
-            login_password TEXT,
-            PRIMARY KEY (user_id, service),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS sync_logs (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            message TEXT NOT NULL,
-            timestamp TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS quick_inputs (
-            id INTEGER PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            icon TEXT DEFAULT '⚡',
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
-
-    console.log('データベースを初期化しました（メモリ内）');
-    return db;
-}
-
-// ヘルパー関数
-function queryAll(sql, params = []) {
-    const stmt = db.prepare(sql);
-    stmt.bind(params);
-    const results = [];
-    while (stmt.step()) {
-        results.push(stmt.getAsObject());
+    if (!supabase) {
+        console.error('Supabase が設定されていません。環境変数を確認してください。');
+        return;
     }
-    stmt.free();
-    return results;
+    console.log('Supabase に接続しました');
 }
 
-function queryOne(sql, params = []) {
-    const results = queryAll(sql, params);
-    return results.length > 0 ? results[0] : null;
+function getDbReady() {
+    return Promise.resolve();
 }
 
-function runSql(sql, params = []) {
-    db.run(sql, params);
-    return { changes: db.getRowsModified() };
+function closeDatabase() {
+    // Supabase は明示的なクローズ不要
 }
 
 // ========================================
 // ユーザー管理
 // ========================================
 const usersDb = {
-    create(username, email, password, displayName) {
+    async create(username, email, password, displayName) {
         const id = uuidv4();
         const passwordHash = bcrypt.hashSync(password, SALT_ROUNDS);
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        runSql(
-            'INSERT INTO users (id, username, email, password_hash, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [id, username, email || null, passwordHash, displayName || username, now, now]
-        );
-        runSql(
-            'INSERT INTO gamification (user_id, level, exp, current_streak, max_streak, badges, challenges) VALUES (?, 1, 0, 0, 0, \'[]\', \'[]\')',
-            [id]
-        );
+        const now = new Date().toISOString();
+
+        const { error } = await supabase.from('users').insert({
+            id, username, email: email || null,
+            password_hash: passwordHash,
+            display_name: displayName || username,
+            created_at: now, updated_at: now
+        });
+        if (error) throw error;
+
+        // ゲーミフィケーション初期データ
+        await supabase.from('gamification').insert({
+            user_id: id, level: 1, exp: 0,
+            current_streak: 0, max_streak: 0,
+            badges: [], challenges: []
+        });
+
         return { id, username, email, displayName: displayName || username };
     },
 
-    findByUsername(username) {
-        return queryOne('SELECT * FROM users WHERE username = ?', [username]);
+    async findByUsername(username) {
+        const { data } = await supabase.from('users').select('*').eq('username', username).single();
+        return data;
     },
 
-    findById(id) {
-        const row = queryOne('SELECT id, username, email, display_name, created_at FROM users WHERE id = ?', [id]);
-        if (!row) return null;
-        return { id: row.id, username: row.username, email: row.email, displayName: row.display_name, createdAt: row.created_at };
+    async findById(id) {
+        const { data } = await supabase.from('users')
+            .select('id, username, email, display_name, created_at')
+            .eq('id', id).single();
+        if (!data) return null;
+        return { id: data.id, username: data.username, email: data.email, displayName: data.display_name, createdAt: data.created_at };
     },
 
     verifyPassword(user, password) {
         return bcrypt.compareSync(password, user.password_hash);
     },
 
-    updateProfile(id, data) {
-        const fields = [];
-        const values = [];
-        if (data.displayName !== undefined) { fields.push('display_name = ?'); values.push(data.displayName); }
-        if (data.email !== undefined) { fields.push('email = ?'); values.push(data.email); }
-        if (fields.length === 0) return;
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        fields.push('updated_at = ?');
-        values.push(now);
-        values.push(id);
-        runSql(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+    async updateProfile(id, data) {
+        const updates = { updated_at: new Date().toISOString() };
+        if (data.displayName !== undefined) updates.display_name = data.displayName;
+        if (data.email !== undefined) updates.email = data.email;
+        await supabase.from('users').update(updates).eq('id', id);
     },
 
-    changePassword(id, newPassword) {
+    async changePassword(id, newPassword) {
         const passwordHash = bcrypt.hashSync(newPassword, SALT_ROUNDS);
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        runSql('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [passwordHash, now, id]);
+        await supabase.from('users').update({
+            password_hash: passwordHash,
+            updated_at: new Date().toISOString()
+        }).eq('id', id);
     },
 
-    deleteUser(id) {
-        runSql('DELETE FROM users WHERE id = ?', [id]);
+    async deleteUser(id) {
+        await supabase.from('users').delete().eq('id', id);
     }
 };
 
@@ -291,93 +101,82 @@ const usersDb = {
 // セッション管理
 // ========================================
 const sessionsDb = {
-    create(userId) {
+    async create(userId) {
         const token = uuidv4();
-        const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-        const expiresStr = expiresAt.toISOString().replace('T', ' ').slice(0, 19);
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        runSql('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)', [token, userId, now, expiresStr]);
-        return { token, expiresAt: expiresStr };
+        const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+        const now = new Date().toISOString();
+
+        await supabase.from('sessions').insert({
+            token, user_id: userId, created_at: now, expires_at: expiresAt
+        });
+        return { token, expiresAt };
     },
 
-    validate(token) {
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        const session = queryOne(
-            'SELECT s.*, u.id as uid, u.username, u.email, u.display_name FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?',
-            [token, now]
-        );
-        if (!session) return null;
+    async validate(token) {
+        const now = new Date().toISOString();
+        const { data } = await supabase.from('sessions')
+            .select('*, users(id, username, email, display_name)')
+            .eq('token', token)
+            .gt('expires_at', now)
+            .single();
+
+        if (!data || !data.users) return null;
         return {
-            userId: session.user_id,
-            username: session.username,
-            email: session.email,
-            displayName: session.display_name
+            userId: data.user_id,
+            username: data.users.username,
+            email: data.users.email,
+            displayName: data.users.display_name
         };
     },
 
-    delete(token) {
-        runSql('DELETE FROM sessions WHERE token = ?', [token]);
+    async delete(token) {
+        await supabase.from('sessions').delete().eq('token', token);
     },
 
-    deleteAllForUser(userId) {
-        runSql('DELETE FROM sessions WHERE user_id = ?', [userId]);
+    async deleteAllForUser(userId) {
+        await supabase.from('sessions').delete().eq('user_id', userId);
     },
 
-    cleanup() {
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        runSql('DELETE FROM sessions WHERE expires_at < ?', [now]);
+    async cleanup() {
+        const now = new Date().toISOString();
+        await supabase.from('sessions').delete().lt('expires_at', now);
     }
 };
 
 // ========================================
 // 汎用CRUD（ユーザー別）
 // ========================================
-function createCRUD(tableName, idField = 'id') {
+function createCRUD(tableName) {
     return {
-        getAll(userId) {
-            return queryAll(`SELECT * FROM ${tableName} WHERE user_id = ? ORDER BY ${idField} DESC`, [userId]);
+        async getAll(userId) {
+            const { data } = await supabase.from(tableName)
+                .select('*').eq('user_id', userId).order('id', { ascending: false });
+            return data || [];
         },
-        create(userId, data) {
-            const keys = Object.keys(data);
-            const vals = Object.values(data);
-            runSql(
-                `INSERT INTO ${tableName} (user_id, ${keys.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})`,
-                [userId, ...vals]
-            );
-            return data;
+        async create(userId, item) {
+            const { error } = await supabase.from(tableName).insert({ ...item, user_id: userId });
+            if (error) throw error;
+            return item;
         },
-        update(userId, id, data) {
-            const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
-            const vals = [...Object.values(data), id, userId];
-            runSql(`UPDATE ${tableName} SET ${sets} WHERE ${idField} = ? AND user_id = ?`, vals);
+        async update(userId, id, data) {
+            await supabase.from(tableName).update(data).eq('id', id).eq('user_id', userId);
         },
-        delete(userId, id) {
-            runSql(`DELETE FROM ${tableName} WHERE ${idField} = ? AND user_id = ?`, [id, userId]);
+        async delete(userId, id) {
+            await supabase.from(tableName).delete().eq('id', id).eq('user_id', userId);
         },
-        deleteAll(userId) {
-            runSql(`DELETE FROM ${tableName} WHERE user_id = ?`, [userId]);
+        async deleteAll(userId) {
+            await supabase.from(tableName).delete().eq('user_id', userId);
         },
-        bulkInsert(userId, items) {
-            items.forEach(item => {
-                const keys = Object.keys(item);
-                const vals = Object.values(item);
-                runSql(
-                    `INSERT INTO ${tableName} (user_id, ${keys.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})`,
-                    [userId, ...vals]
-                );
-            });
+        async bulkInsert(userId, items) {
+            if (!items.length) return;
+            const rows = items.map(item => ({ ...item, user_id: userId }));
+            await supabase.from(tableName).insert(rows);
         },
-        replaceAll(userId, items) {
-            runSql(`DELETE FROM ${tableName} WHERE user_id = ?`, [userId]);
-            if (Array.isArray(items)) {
-                items.forEach(item => {
-                    const keys = Object.keys(item);
-                    const vals = Object.values(item);
-                    runSql(
-                        `INSERT INTO ${tableName} (user_id, ${keys.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})`,
-                        [userId, ...vals]
-                    );
-                });
+        async replaceAll(userId, items) {
+            await supabase.from(tableName).delete().eq('user_id', userId);
+            if (Array.isArray(items) && items.length) {
+                const rows = items.map(item => ({ ...item, user_id: userId }));
+                await supabase.from(tableName).insert(rows);
             }
         }
     };
@@ -392,128 +191,132 @@ const quickInputs = createCRUD('quick_inputs');
 
 // 予算（オブジェクト形式）
 const budgets = {
-    getAll(userId) {
-        const rows = queryAll('SELECT month, category, amount FROM budgets WHERE user_id = ?', [userId]);
+    async getAll(userId) {
+        const { data } = await supabase.from('budgets').select('month, category, amount').eq('user_id', userId);
         const result = {};
-        rows.forEach(r => {
+        (data || []).forEach(r => {
             if (!result[r.month]) result[r.month] = {};
             result[r.month][r.category] = r.amount;
         });
         return result;
     },
-    replaceAll(userId, data) {
-        runSql('DELETE FROM budgets WHERE user_id = ?', [userId]);
-        for (const [month, cats] of Object.entries(data)) {
+    async replaceAll(userId, budgetData) {
+        await supabase.from('budgets').delete().eq('user_id', userId);
+        const rows = [];
+        for (const [month, cats] of Object.entries(budgetData)) {
             for (const [category, amount] of Object.entries(cats)) {
-                runSql('INSERT INTO budgets (user_id, month, category, amount) VALUES (?, ?, ?, ?)', [userId, month, category, amount]);
+                rows.push({ user_id: userId, month, category, amount });
             }
         }
+        if (rows.length) await supabase.from('budgets').insert(rows);
     }
 };
 
 // ゲーミフィケーション
 const gamification = {
-    get(userId) {
-        const row = queryOne('SELECT * FROM gamification WHERE user_id = ?', [userId]);
-        if (!row) return { level: 1, exp: 0, currentStreak: 0, maxStreak: 0, lastRecordDate: null, badges: [], challenges: [] };
+    async get(userId) {
+        const { data } = await supabase.from('gamification').select('*').eq('user_id', userId).single();
+        if (!data) return { level: 1, exp: 0, currentStreak: 0, maxStreak: 0, lastRecordDate: null, badges: [], challenges: [] };
         return {
-            level: row.level,
-            exp: row.exp,
-            currentStreak: row.current_streak,
-            maxStreak: row.max_streak,
-            lastRecordDate: row.last_record_date,
-            badges: JSON.parse(row.badges || '[]'),
-            challenges: JSON.parse(row.challenges || '[]')
+            level: data.level,
+            exp: data.exp,
+            currentStreak: data.current_streak,
+            maxStreak: data.max_streak,
+            lastRecordDate: data.last_record_date,
+            badges: data.badges || [],
+            challenges: data.challenges || []
         };
     },
-    update(userId, data) {
-        const existing = queryOne('SELECT user_id FROM gamification WHERE user_id = ?', [userId]);
-        const badges = JSON.stringify(data.badges || []);
-        const challenges = JSON.stringify(data.challenges || []);
-        if (existing) {
-            runSql(
-                'UPDATE gamification SET level = ?, exp = ?, current_streak = ?, max_streak = ?, last_record_date = ?, badges = ?, challenges = ? WHERE user_id = ?',
-                [data.level || 1, data.exp || 0, data.currentStreak || 0, data.maxStreak || 0, data.lastRecordDate || null, badges, challenges, userId]
-            );
-        } else {
-            runSql(
-                'INSERT INTO gamification (user_id, level, exp, current_streak, max_streak, last_record_date, badges, challenges) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [userId, data.level || 1, data.exp || 0, data.currentStreak || 0, data.maxStreak || 0, data.lastRecordDate || null, badges, challenges]
-            );
-        }
+    async update(userId, gData) {
+        const row = {
+            user_id: userId,
+            level: gData.level || 1,
+            exp: gData.exp || 0,
+            current_streak: gData.currentStreak || 0,
+            max_streak: gData.maxStreak || 0,
+            last_record_date: gData.lastRecordDate || null,
+            badges: gData.badges || [],
+            challenges: gData.challenges || []
+        };
+        await supabase.from('gamification').upsert(row, { onConflict: 'user_id' });
     }
 };
 
-// 連携口座（JSON形式）
+// 連携口座
 const linkedAccounts = {
-    get(userId) {
-        const rows = queryAll('SELECT type, name, balance FROM linked_accounts WHERE user_id = ?', [userId]);
+    async get(userId) {
+        const { data } = await supabase.from('linked_accounts').select('type, name, balance').eq('user_id', userId);
         const result = { bank: [], securities: [], credit: [], emoney: [], qr: [], points: [], ec: [] };
-        rows.forEach(r => {
+        (data || []).forEach(r => {
             if (result[r.type]) result[r.type].push({ name: r.name, balance: r.balance });
         });
         return result;
     },
-    update(userId, data) {
-        runSql('DELETE FROM linked_accounts WHERE user_id = ?', [userId]);
-        for (const [type, accounts] of Object.entries(data)) {
-            if (Array.isArray(accounts)) {
-                accounts.forEach(acc => {
-                    runSql('INSERT INTO linked_accounts (user_id, type, name, balance) VALUES (?, ?, ?, ?)', [userId, type, acc.name, acc.balance || 0]);
-                });
+    async update(userId, accounts) {
+        await supabase.from('linked_accounts').delete().eq('user_id', userId);
+        const rows = [];
+        for (const [type, list] of Object.entries(accounts)) {
+            if (Array.isArray(list)) {
+                list.forEach(acc => rows.push({ user_id: userId, type, name: acc.name, balance: acc.balance || 0 }));
             }
         }
+        if (rows.length) await supabase.from('linked_accounts').insert(rows);
     }
 };
 
 // 接続アカウント
 const connectedAccounts = {
-    get(userId) {
-        const rows = queryAll('SELECT service, is_connected, connected_at, last_sync, login_id FROM connected_accounts WHERE user_id = ?', [userId]);
+    async get(userId) {
+        const { data } = await supabase.from('connected_accounts').select('*').eq('user_id', userId);
         const result = {};
-        rows.forEach(r => {
-            result[r.service] = { isConnected: !!r.is_connected, connectedAt: r.connected_at, lastSync: r.last_sync, loginId: r.login_id };
+        (data || []).forEach(r => {
+            result[r.service] = { isConnected: r.is_connected, connectedAt: r.connected_at, lastSync: r.last_sync, loginId: r.login_id };
         });
         return result;
     },
-    update(userId, data) {
-        runSql('DELETE FROM connected_accounts WHERE user_id = ?', [userId]);
-        for (const [service, info] of Object.entries(data)) {
-            runSql(
-                'INSERT INTO connected_accounts (user_id, service, is_connected, connected_at, last_sync, login_id, login_password) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [userId, service, info.isConnected ? 1 : 0, info.connectedAt || null, info.lastSync || null, info.loginId || null, info.loginPassword || null]
-            );
+    async update(userId, accounts) {
+        await supabase.from('connected_accounts').delete().eq('user_id', userId);
+        const rows = [];
+        for (const [service, info] of Object.entries(accounts)) {
+            rows.push({
+                user_id: userId, service,
+                is_connected: info.isConnected || false,
+                connected_at: info.connectedAt || null,
+                last_sync: info.lastSync || null,
+                login_id: info.loginId || null,
+                login_password: info.loginPassword || null
+            });
         }
+        if (rows.length) await supabase.from('connected_accounts').insert(rows);
     }
 };
 
 // 同期ログ
 const syncLogs = {
-    get(userId) {
-        return queryAll('SELECT type, message, timestamp FROM sync_logs WHERE user_id = ? ORDER BY id DESC LIMIT 100', [userId]);
+    async get(userId) {
+        const { data } = await supabase.from('sync_logs')
+            .select('type, message, timestamp')
+            .eq('user_id', userId)
+            .order('id', { ascending: false })
+            .limit(100);
+        return data || [];
     },
-    add(userId, type, message) {
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        runSql('INSERT INTO sync_logs (user_id, type, message, timestamp) VALUES (?, ?, ?, ?)', [userId, type, message, now]);
-    },
-    clear(userId) {
-        runSql('DELETE FROM sync_logs WHERE user_id = ?', [userId]);
-    },
-    update(userId, logs) {
-        runSql('DELETE FROM sync_logs WHERE user_id = ?', [userId]);
-        logs.forEach(log => {
-            runSql('INSERT INTO sync_logs (user_id, type, message, timestamp) VALUES (?, ?, ?, ?)', [userId, log.type, log.message, log.timestamp]);
+    async add(userId, type, message) {
+        await supabase.from('sync_logs').insert({
+            user_id: userId, type, message, timestamp: new Date().toISOString()
         });
+    },
+    async clear(userId) {
+        await supabase.from('sync_logs').delete().eq('user_id', userId);
+    },
+    async update(userId, logs) {
+        await supabase.from('sync_logs').delete().eq('user_id', userId);
+        if (logs.length) {
+            const rows = logs.map(l => ({ user_id: userId, type: l.type, message: l.message, timestamp: l.timestamp }));
+            await supabase.from('sync_logs').insert(rows);
+        }
     }
 };
-
-function closeDatabase() {
-    if (db) {
-        db.close();
-        db = null;
-        dbReady = null;
-    }
-}
 
 module.exports = {
     initializeDatabase,

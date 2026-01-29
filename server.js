@@ -1,4 +1,4 @@
-// 家計簿アプリ - バックエンドサーバー（認証対応・Vercel対応）
+// 家計簿アプリ - バックエンドサーバー（Supabase対応）
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -12,31 +12,20 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
-// データベース初期化（非同期）
-let dbInitialized = false;
-const initPromise = db.initializeDatabase().then(() => {
-    dbInitialized = true;
-}).catch(err => {
-    console.error('データベース初期化エラー:', err);
-});
-
-// DB初期化待機ミドルウェア
-app.use(async (req, res, next) => {
-    if (!dbInitialized) await initPromise;
-    next();
-});
+// データベース初期化
+db.initializeDatabase();
 
 // ========================================
 // 認証ミドルウェア
 // ========================================
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'ログインが必要です' });
     }
 
     const token = authHeader.slice(7);
-    const session = db.sessions.validate(token);
+    const session = await db.sessions.validate(token);
     if (!session) {
         return res.status(401).json({ error: 'セッションが無効または期限切れです' });
     }
@@ -50,7 +39,7 @@ function authMiddleware(req, res, next) {
 // ========================================
 
 // ユーザー登録
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
 
@@ -64,13 +53,13 @@ app.post('/api/auth/register', (req, res) => {
             return res.status(400).json({ error: 'パスワードは6文字以上にしてください' });
         }
 
-        const existing = db.users.findByUsername(username);
+        const existing = await db.users.findByUsername(username);
         if (existing) {
             return res.status(409).json({ error: 'このユーザー名は既に使用されています' });
         }
 
-        const user = db.users.create(username, email, password, displayName);
-        const session = db.sessions.create(user.id);
+        const user = await db.users.create(username, email, password, displayName);
+        const session = await db.sessions.create(user.id);
 
         res.status(201).json({
             user: { id: user.id, username: user.username, email: user.email, displayName: user.displayName },
@@ -83,7 +72,7 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 // ログイン
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -91,7 +80,7 @@ app.post('/api/auth/login', (req, res) => {
             return res.status(400).json({ error: 'ユーザー名とパスワードを入力してください' });
         }
 
-        const user = db.users.findByUsername(username);
+        const user = await db.users.findByUsername(username);
         if (!user) {
             return res.status(401).json({ error: 'ユーザー名またはパスワードが正しくありません' });
         }
@@ -100,7 +89,7 @@ app.post('/api/auth/login', (req, res) => {
             return res.status(401).json({ error: 'ユーザー名またはパスワードが正しくありません' });
         }
 
-        const session = db.sessions.create(user.id);
+        const session = await db.sessions.create(user.id);
 
         res.json({
             user: { id: user.id, username: user.username, email: user.email, displayName: user.display_name },
@@ -113,10 +102,10 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // ログアウト
-app.post('/api/auth/logout', authMiddleware, (req, res) => {
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
     try {
         const token = req.headers.authorization.slice(7);
-        db.sessions.delete(token);
+        await db.sessions.delete(token);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -124,9 +113,9 @@ app.post('/api/auth/logout', authMiddleware, (req, res) => {
 });
 
 // 現在のユーザー情報
-app.get('/api/auth/me', authMiddleware, (req, res) => {
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
     try {
-        const user = db.users.findById(req.user.userId);
+        const user = await db.users.findById(req.user.userId);
         if (!user) return res.status(404).json({ error: 'ユーザーが見つかりません' });
         res.json(user);
     } catch (err) {
@@ -135,17 +124,17 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 });
 
 // パスワード変更
-app.put('/api/auth/password', authMiddleware, (req, res) => {
+app.put('/api/auth/password', authMiddleware, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         if (!newPassword || newPassword.length < 6) {
             return res.status(400).json({ error: '新しいパスワードは6文字以上にしてください' });
         }
-        const user = db.users.findByUsername(req.user.username);
+        const user = await db.users.findByUsername(req.user.username);
         if (!db.users.verifyPassword(user, currentPassword)) {
             return res.status(401).json({ error: '現在のパスワードが正しくありません' });
         }
-        db.users.changePassword(req.user.userId, newPassword);
+        await db.users.changePassword(req.user.userId, newPassword);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -153,10 +142,10 @@ app.put('/api/auth/password', authMiddleware, (req, res) => {
 });
 
 // プロフィール更新
-app.put('/api/auth/profile', authMiddleware, (req, res) => {
+app.put('/api/auth/profile', authMiddleware, async (req, res) => {
     try {
-        db.users.updateProfile(req.user.userId, req.body);
-        const user = db.users.findById(req.user.userId);
+        await db.users.updateProfile(req.user.userId, req.body);
+        const user = await db.users.findById(req.user.userId);
         res.json(user);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -164,9 +153,9 @@ app.put('/api/auth/profile', authMiddleware, (req, res) => {
 });
 
 // アカウント削除
-app.delete('/api/auth/account', authMiddleware, (req, res) => {
+app.delete('/api/auth/account', authMiddleware, async (req, res) => {
     try {
-        db.users.deleteUser(req.user.userId);
+        await db.users.deleteUser(req.user.userId);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -174,278 +163,336 @@ app.delete('/api/auth/account', authMiddleware, (req, res) => {
 });
 
 // ========================================
-// 以下、すべて認証必須
-// ========================================
-
 // 支出 API
-app.get('/api/expenses', authMiddleware, (req, res) => {
-    try { res.json(db.expenses.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/expenses', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.expenses.create(req.user.userId, req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/expenses/:id', authMiddleware, (req, res) => {
-    try { res.json(db.expenses.update(req.user.userId, parseInt(req.params.id), req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/expenses', authMiddleware, (req, res) => {
-    try {
-        db.expenses.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.expenses.bulkInsert(req.user.userId, req.body);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/expenses/:id', authMiddleware, (req, res) => {
-    try { db.expenses.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/expenses', authMiddleware, (req, res) => {
-    try { db.expenses.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/expenses/bulk', authMiddleware, (req, res) => {
-    try { db.expenses.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/expenses', authMiddleware, async (req, res) => {
+    try { res.json(await db.expenses.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/expenses', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.expenses.create(req.user.userId, req.body)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/expenses/:id', authMiddleware, async (req, res) => {
+    try { await db.expenses.update(req.user.userId, req.params.id, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/expenses', authMiddleware, async (req, res) => {
+    try {
+        await db.expenses.replaceAll(req.user.userId, req.body);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/expenses/:id', authMiddleware, async (req, res) => {
+    try { await db.expenses.delete(req.user.userId, req.params.id); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/expenses', authMiddleware, async (req, res) => {
+    try { await db.expenses.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/expenses/bulk', authMiddleware, async (req, res) => {
+    try { await db.expenses.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 収入 API
-app.get('/api/incomes', authMiddleware, (req, res) => {
-    try { res.json(db.incomes.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/incomes', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.incomes.create(req.user.userId, req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/incomes', authMiddleware, (req, res) => {
-    try {
-        db.incomes.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.incomes.bulkInsert(req.user.userId, req.body);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/incomes/:id', authMiddleware, (req, res) => {
-    try { db.incomes.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/incomes', authMiddleware, (req, res) => {
-    try { db.incomes.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/incomes/bulk', authMiddleware, (req, res) => {
-    try { db.incomes.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/incomes', authMiddleware, async (req, res) => {
+    try { res.json(await db.incomes.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/incomes', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.incomes.create(req.user.userId, req.body)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/incomes', authMiddleware, async (req, res) => {
+    try {
+        await db.incomes.replaceAll(req.user.userId, req.body);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/incomes/:id', authMiddleware, async (req, res) => {
+    try { await db.incomes.delete(req.user.userId, req.params.id); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/incomes', authMiddleware, async (req, res) => {
+    try { await db.incomes.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/incomes/bulk', authMiddleware, async (req, res) => {
+    try { await db.incomes.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 予算 API
-app.get('/api/budgets', authMiddleware, (req, res) => {
-    try { res.json(db.budgets.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/budgets', authMiddleware, (req, res) => {
-    try { db.budgets.save(req.user.userId, req.body); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/budgets', authMiddleware, (req, res) => {
-    try { db.budgets.deleteAll(req.user.userId); res.json({ success: true }); }
+// ========================================
+app.get('/api/budgets', authMiddleware, async (req, res) => {
+    try { res.json(await db.budgets.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.put('/api/budgets', authMiddleware, async (req, res) => {
+    try { await db.budgets.replaceAll(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 定期支出 API
-app.get('/api/subscriptions', authMiddleware, (req, res) => {
-    try { res.json(db.subscriptions.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/subscriptions', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.subscriptions.create(req.user.userId, req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/subscriptions', authMiddleware, (req, res) => {
-    try {
-        db.subscriptions.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.subscriptions.bulkInsert(req.user.userId, req.body);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/subscriptions/:id', authMiddleware, (req, res) => {
-    try { db.subscriptions.update(req.user.userId, parseInt(req.params.id), req.body); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/subscriptions/:id', authMiddleware, (req, res) => {
-    try { db.subscriptions.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/subscriptions', authMiddleware, (req, res) => {
-    try { db.subscriptions.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/subscriptions/bulk', authMiddleware, (req, res) => {
-    try { db.subscriptions.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/subscriptions', authMiddleware, async (req, res) => {
+    try { res.json(await db.subscriptions.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/subscriptions', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.subscriptions.create(req.user.userId, req.body)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/subscriptions', authMiddleware, async (req, res) => {
+    try {
+        await db.subscriptions.replaceAll(req.user.userId, req.body);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/subscriptions/:id', authMiddleware, async (req, res) => {
+    try { await db.subscriptions.update(req.user.userId, req.params.id, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/subscriptions/:id', authMiddleware, async (req, res) => {
+    try { await db.subscriptions.delete(req.user.userId, req.params.id); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/subscriptions', authMiddleware, async (req, res) => {
+    try { await db.subscriptions.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/subscriptions/bulk', authMiddleware, async (req, res) => {
+    try { await db.subscriptions.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 目標 API
-app.get('/api/goals', authMiddleware, (req, res) => {
-    try { res.json(db.goals.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/goals', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.goals.create(req.user.userId, req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/goals', authMiddleware, (req, res) => {
-    try {
-        db.goals.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.goals.bulkInsert(req.user.userId, req.body);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/goals/:id', authMiddleware, (req, res) => {
-    try { db.goals.update(req.user.userId, parseInt(req.params.id), req.body); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/goals/:id', authMiddleware, (req, res) => {
-    try { db.goals.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/goals', authMiddleware, (req, res) => {
-    try { db.goals.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/goals/bulk', authMiddleware, (req, res) => {
-    try { db.goals.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/goals', authMiddleware, async (req, res) => {
+    try { res.json(await db.goals.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/goals', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.goals.create(req.user.userId, req.body)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/goals', authMiddleware, async (req, res) => {
+    try {
+        await db.goals.replaceAll(req.user.userId, req.body);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/goals/:id', authMiddleware, async (req, res) => {
+    try { await db.goals.update(req.user.userId, req.params.id, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/goals/:id', authMiddleware, async (req, res) => {
+    try { await db.goals.delete(req.user.userId, req.params.id); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/goals', authMiddleware, async (req, res) => {
+    try { await db.goals.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/goals/bulk', authMiddleware, async (req, res) => {
+    try { await db.goals.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 家族メンバー API
-app.get('/api/family', authMiddleware, (req, res) => {
-    try { res.json(db.family.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/family', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.family.create(req.user.userId, req.body)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/family', authMiddleware, (req, res) => {
-    try {
-        db.family.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.family.bulkInsert(req.user.userId, req.body);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/family/:id', authMiddleware, (req, res) => {
-    try { db.family.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/family', authMiddleware, (req, res) => {
-    try { db.family.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/family/bulk', authMiddleware, (req, res) => {
-    try { db.family.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/family', authMiddleware, async (req, res) => {
+    try { res.json(await db.familyMembers.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/family', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.familyMembers.create(req.user.userId, req.body)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/family', authMiddleware, async (req, res) => {
+    try {
+        await db.familyMembers.replaceAll(req.user.userId, req.body);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/family/:id', authMiddleware, async (req, res) => {
+    try { await db.familyMembers.delete(req.user.userId, req.params.id); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/family', authMiddleware, async (req, res) => {
+    try { await db.familyMembers.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/family/bulk', authMiddleware, async (req, res) => {
+    try { await db.familyMembers.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // ゲーミフィケーション API
-app.get('/api/gamification', authMiddleware, (req, res) => {
-    try { res.json(db.gamification.get(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/gamification', authMiddleware, (req, res) => {
-    try { db.gamification.save(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/gamification', authMiddleware, async (req, res) => {
+    try { res.json(await db.gamification.get(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.put('/api/gamification', authMiddleware, async (req, res) => {
+    try { await db.gamification.update(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 連携口座 API
-app.get('/api/linked-accounts', authMiddleware, (req, res) => {
-    try { res.json(db.linkedAccounts.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/linked-accounts', authMiddleware, (req, res) => {
-    try { db.linkedAccounts.save(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/linked-accounts', authMiddleware, async (req, res) => {
+    try { res.json(await db.linkedAccounts.get(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// アカウント連携 API
-app.get('/api/connected-accounts', authMiddleware, (req, res) => {
-    try { res.json(db.connectedAccounts.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/connected-accounts', authMiddleware, (req, res) => {
-    try { db.connectedAccounts.save(req.user.userId, req.body); res.json({ success: true }); }
+app.put('/api/linked-accounts', authMiddleware, async (req, res) => {
+    try { await db.linkedAccounts.update(req.user.userId, req.body); res.json({ success: true }); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ========================================
+// 接続アカウント API
+// ========================================
+app.get('/api/connected-accounts', authMiddleware, async (req, res) => {
+    try { res.json(await db.connectedAccounts.get(req.user.userId)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/connected-accounts', authMiddleware, async (req, res) => {
+    try { await db.connectedAccounts.update(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // 同期ログ API
-app.get('/api/sync-logs', authMiddleware, (req, res) => {
-    try { res.json(db.syncLogs.getAll(req.user.userId)); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.put('/api/sync-logs', authMiddleware, (req, res) => {
-    try { db.syncLogs.save(req.user.userId, req.body); res.json({ success: true }); }
+// ========================================
+app.get('/api/sync-logs', authMiddleware, async (req, res) => {
+    try { res.json(await db.syncLogs.get(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.put('/api/sync-logs', authMiddleware, async (req, res) => {
+    try { await db.syncLogs.update(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
 // クイック入力 API
-app.get('/api/quick-inputs', authMiddleware, (req, res) => {
-    try { res.json(db.quickInputs.getAll(req.user.userId)); }
+// ========================================
+app.get('/api/quick-inputs', authMiddleware, async (req, res) => {
+    try { res.json(await db.quickInputs.getAll(req.user.userId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
-app.post('/api/quick-inputs', authMiddleware, (req, res) => {
-    try { res.status(201).json(db.quickInputs.create(req.user.userId, req.body)); }
+
+app.post('/api/quick-inputs', authMiddleware, async (req, res) => {
+    try { res.status(201).json(await db.quickInputs.create(req.user.userId, req.body)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
-app.put('/api/quick-inputs', authMiddleware, (req, res) => {
+
+app.put('/api/quick-inputs', authMiddleware, async (req, res) => {
     try {
-        db.quickInputs.deleteAll(req.user.userId);
-        if (Array.isArray(req.body) && req.body.length > 0) db.quickInputs.bulkInsert(req.user.userId, req.body);
+        await db.quickInputs.replaceAll(req.user.userId, req.body);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-app.delete('/api/quick-inputs/:id', authMiddleware, (req, res) => {
-    try { db.quickInputs.delete(req.user.userId, parseInt(req.params.id)); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.delete('/api/quick-inputs', authMiddleware, (req, res) => {
-    try { db.quickInputs.deleteAll(req.user.userId); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/quick-inputs/bulk', authMiddleware, (req, res) => {
-    try { db.quickInputs.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+
+app.delete('/api/quick-inputs/:id', authMiddleware, async (req, res) => {
+    try { await db.quickInputs.delete(req.user.userId, req.params.id); res.json({ success: true }); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 全データ取得
-app.get('/api/all-data', authMiddleware, (req, res) => {
+app.delete('/api/quick-inputs', authMiddleware, async (req, res) => {
+    try { await db.quickInputs.deleteAll(req.user.userId); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quick-inputs/bulk', authMiddleware, async (req, res) => {
+    try { await db.quickInputs.bulkInsert(req.user.userId, req.body); res.json({ success: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ========================================
+// 全データ取得/削除 API
+// ========================================
+app.get('/api/all-data', authMiddleware, async (req, res) => {
     try {
-        const uid = req.user.userId;
+        const userId = req.user.userId;
         res.json({
-            expenses: db.expenses.getAll(uid), incomes: db.incomes.getAll(uid),
-            budgets: db.budgets.getAll(uid), subscriptions: db.subscriptions.getAll(uid),
-            goals: db.goals.getAll(uid), familyMembers: db.family.getAll(uid),
-            gamification: db.gamification.get(uid), linkedAccounts: db.linkedAccounts.getAll(uid),
-            connectedAccounts: db.connectedAccounts.getAll(uid), syncLogs: db.syncLogs.getAll(uid),
-            quickInputs: db.quickInputs.getAll(uid)
+            expenses: await db.expenses.getAll(userId),
+            incomes: await db.incomes.getAll(userId),
+            budgets: await db.budgets.getAll(userId),
+            subscriptions: await db.subscriptions.getAll(userId),
+            goals: await db.goals.getAll(userId),
+            familyMembers: await db.familyMembers.getAll(userId),
+            gamification: await db.gamification.get(userId),
+            linkedAccounts: await db.linkedAccounts.get(userId),
+            connectedAccounts: await db.connectedAccounts.get(userId),
+            quickInputs: await db.quickInputs.getAll(userId)
         });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// 全データ削除
-app.delete('/api/all-data', authMiddleware, (req, res) => {
+app.delete('/api/all-data', authMiddleware, async (req, res) => {
     try {
-        const uid = req.user.userId;
-        db.expenses.deleteAll(uid); db.incomes.deleteAll(uid); db.budgets.deleteAll(uid);
-        db.subscriptions.deleteAll(uid); db.goals.deleteAll(uid); db.family.deleteAll(uid);
-        db.gamification.save(uid, { level: 1, exp: 0, currentStreak: 0, maxStreak: 0, lastRecordDate: null, badges: [], challenges: [] });
-        db.linkedAccounts.save(uid, { bank: [], securities: [], credit: [], emoney: [], qr: [], points: [], ec: [] });
-        db.connectedAccounts.save(uid, {}); db.syncLogs.save(uid, []); db.quickInputs.deleteAll(uid);
-        res.json({ success: true, message: '全データを削除しました' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        const userId = req.user.userId;
+        await db.expenses.deleteAll(userId);
+        await db.incomes.deleteAll(userId);
+        await db.subscriptions.deleteAll(userId);
+        await db.goals.deleteAll(userId);
+        await db.familyMembers.deleteAll(userId);
+        await db.quickInputs.deleteAll(userId);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
+// ========================================
 // ページルーティング
+// ========================================
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'login.html'));
 });
