@@ -4,7 +4,7 @@
   "description": "家計簿アプリ - 予算管理、外部API連携、レシートOCR機能付き",
   "main": "server.js",
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node server.js",
