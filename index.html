@@ -9,6 +9,12 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
+    <script>
+        // 認証チェック - 未ログインならログイン画面へリダイレクト
+        if (!localStorage.getItem('auth_token')) {
+            window.location.href = '/login';
+        }
+    </script>
     <div class="app-container">
         <header>
             <h1>家計簿アプリ</h1>
