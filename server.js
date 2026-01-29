@@ -13,7 +13,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
 // データベース初期化
-db.initializeDatabase();
+try {
+    db.initializeDatabase();
+    console.log('データベースを初期化しました');
+} catch (err) {
+    console.error('データベース初期化エラー:', err);
+    process.exit(1);
+}
 
 // ========================================
 // 認証ミドルウェア
