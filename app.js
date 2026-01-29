@@ -3,11 +3,59 @@
 // API ベースURL
 const API_BASE = '/api';
 
-// データベースAPI通信ヘルパー
+// 認証ヘルパー
+const Auth = {
+    getToken() {
+        return localStorage.getItem('auth_token');
+    },
+    getUser() {
+        try { return JSON.parse(localStorage.getItem('auth_user')); } catch { return null; }
+    },
+    getHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = this.getToken();
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        return headers;
+    },
+    isLoggedIn() {
+        return !!this.getToken();
+    },
+    logout() {
+        const token = this.getToken();
+        if (token) {
+            fetch(`${API_BASE}/auth/logout`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            }).catch(() => {});
+        }
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        window.location.href = '/login';
+    },
+    requireAuth() {
+        if (!this.isLoggedIn()) {
+            window.location.href = '/login';
+            return false;
+        }
+        return true;
+    },
+    handleUnauthorized(status) {
+        if (status === 401) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.href = '/login';
+            return true;
+        }
+        return false;
+    }
+};
+
+// データベースAPI通信ヘルパー（認証トークン付き）
 const DbApi = {
     async get(endpoint) {
         try {
-            const res = await fetch(`${API_BASE}${endpoint}`);
+            const res = await fetch(`${API_BASE}${endpoint}`, { headers: Auth.getHeaders() });
+            if (Auth.handleUnauthorized(res.status)) return null;
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
         } catch (err) {
@@ -19,10 +67,9 @@ const DbApi = {
     async post(endpoint, data) {
         try {
             const res = await fetch(`${API_BASE}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                method: 'POST', headers: Auth.getHeaders(), body: JSON.stringify(data)
             });
+            if (Auth.handleUnauthorized(res.status)) return null;
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
         } catch (err) {
@@ -34,10 +81,9 @@ const DbApi = {
     async put(endpoint, data) {
         try {
             const res = await fetch(`${API_BASE}${endpoint}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                method: 'PUT', headers: Auth.getHeaders(), body: JSON.stringify(data)
             });
+            if (Auth.handleUnauthorized(res.status)) return null;
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
         } catch (err) {
@@ -48,7 +94,8 @@ const DbApi = {
 
     async delete(endpoint) {
         try {
-            const res = await fetch(`${API_BASE}${endpoint}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}${endpoint}`, { method: 'DELETE', headers: Auth.getHeaders() });
+            if (Auth.handleUnauthorized(res.status)) return null;
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.json();
         } catch (err) {
@@ -312,9 +359,39 @@ function refreshUI() {
     checkStreak();
 }
 
+// ユーザー情報をヘッダーに表示
+function showUserInfo() {
+    const user = Auth.getUser();
+    const header = document.querySelector('header');
+    if (!header || !user) return;
+
+    // 既存のユーザーバーがあれば削除
+    const existing = document.getElementById('userBar');
+    if (existing) existing.remove();
+
+    const userBar = document.createElement('div');
+    userBar.id = 'userBar';
+    userBar.style.cssText = 'display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 0 10px 0;font-size:14px;';
+    userBar.innerHTML = `
+        <span style="font-weight:600;opacity:0.9;">👤 ${escapeHtml(user.displayName || user.username)}</span>
+        <button id="logoutBtn" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:4px 12px;border-radius:12px;cursor:pointer;font-size:13px;transition:background 0.2s;">ログアウト</button>
+    `;
+    header.insertBefore(userBar, header.firstChild);
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (confirm('ログアウトしますか？')) Auth.logout();
+    });
+}
+
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
-    // まずlocalStorageからデータを即時読み込み（高速）
+    // 認証チェック
+    if (!Auth.requireAuth()) return;
+
+    // ユーザー情報表示
+    showUserInfo();
+
+    // localStorageキャッシュからデータを即時読み込み
     loadDataFromCache();
 
     // 各機能の初期化
@@ -352,15 +429,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // データベースとの同期（非同期）
     try {
-        const isMigrated = localStorage.getItem('db_migrated');
-        if (!isMigrated) {
-            // 初回起動：localStorageのデータをDBへ移行
-            await Storage.migrateToDatabase();
-        }
         // DBからデータを同期
         const synced = await Storage.syncFromDatabase();
         if (synced) {
-            // DB同期後にデータを再読み込みして画面更新
             loadDataFromCache();
             refreshUI();
         }
