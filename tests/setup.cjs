@@ -1,7 +1,6 @@
-// Jest テストセットアップ (ES Modules対応)
-import { jest } from '@jest/globals';
+// Jest テストセットアップ (CommonJS)
 
-// LocalStorage モック (jsdom環境用)
+// LocalStorage モック
 const localStorageMock = (() => {
   let store = {};
   return {
@@ -60,5 +59,8 @@ global.navigator.onLine = true;
 // 環境変数のデフォルト
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-for-jest-testing-only-32ch';
 
-// jestをグローバルにエクスポート（他のテストファイルで使用可能に）
-global.jest = jest;
+// テスト前にストレージをクリア
+beforeEach(() => {
+  localStorageMock.clear();
+  jest.clearAllMocks();
+});

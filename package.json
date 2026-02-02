@@ -1,23 +1,27 @@
 {
   "name": "household-budget-app",
-  "version": "1.0.0",
-  "description": "家計簿アプリ - 予算管理、外部API連携、レシートOCR機能付き",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "家計簿アプリ - セキュア設計、モジュール化アーキテクチャ",
+  "type": "module",
+  "main": "src/server/index.js",
   "engines": {
-    "node": "24.x"
+    "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "start": "node src/server/index.js",
+    "start:legacy": "node server.js",
+    "dev": "node --watch src/server/index.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "lint": "echo 'Add ESLint configuration'"
   },
   "keywords": [
     "household",
     "budget",
     "finance",
-    "japanese"
+    "japanese",
+    "secure"
   ],
   "author": "",
   "license": "MIT",
@@ -26,19 +30,26 @@
     "jest-environment-jsdom": "^29.7.0"
   },
   "jest": {
-    "testEnvironment": "jsdom",
+    "testEnvironment": "node",
+    "injectGlobals": true,
     "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.js"
+      "<rootDir>/tests/setup.cjs"
     ],
     "moduleFileExtensions": [
-      "js"
+      "js",
+      "cjs"
     ],
     "testMatch": [
       "**/tests/**/*.test.js"
     ],
     "collectCoverageFrom": [
+      "src/**/*.js",
       "app.js"
-    ]
+    ],
+    "transform": {},
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.2",

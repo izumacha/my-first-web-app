@@ -1,5 +1,6 @@
 /**
  * 家計簿アプリ テストスイート
+ * @jest-environment jsdom
  */
 
 // app.jsから関数をインポートするため、DOMを設定
