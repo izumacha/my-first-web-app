@@ -1,50 +1,13 @@
 {
-  "name": "household-budget-app",
+  "name": "simple-kakeibo",
   "version": "1.0.0",
-  "description": "家計簿アプリ - 予算管理、外部API連携、レシートOCR機能付き",
+  "description": "シンプル家計簿",
   "main": "server.js",
-  "engines": {
-    "node": "24.x"
-  },
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
-  },
-  "keywords": [
-    "household",
-    "budget",
-    "finance",
-    "japanese"
-  ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.js"
-    ],
-    "moduleFileExtensions": [
-      "js"
-    ],
-    "testMatch": [
-      "**/tests/**/*.test.js"
-    ],
-    "collectCoverageFrom": [
-      "app.js"
-    ]
+    "start": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.2",
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "uuid": "^13.0.0"
+    "express": "^5.2.1"
   }
 }
